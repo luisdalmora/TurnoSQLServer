@@ -1,23 +1,21 @@
 <?php
+// backup_database.php (Adaptado para SQL Server)
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // Agora conecta ao MySQL e define $conexao (mysqli), $db_servername_mysql, $db_username_mysql, etc.
+// $conexao_sqlsrv é definido em conexao.php usando $db_servername_sqlsrv, etc.
+require_once __DIR__ . '/conexao.php'; 
 require_once __DIR__ . '/LogHelper.php';
 
-// Se o LogHelper foi instanciado em conexao.php e $conexao é mysqli,
-// $logger = new LogHelper($conexao); deve funcionar se LogHelper for adaptado.
-// Se LogHelper não foi adaptado para mysqli, pode causar erro.
-// Para este exemplo, assumimos que LogHelper pode lidar com a conexão mysqli ou não a usa para operações de BD.
-$logger = new LogHelper($conexao);
+$logger = new LogHelper($conexao); // $conexao é um recurso SQLSRV
 header('Content-Type: application/json');
 
-// Validação de método e CSRF
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(["success" => false, "message" => "Método não permitido."]);
+    if ($conexao) sqlsrv_close($conexao);
     exit;
 }
 
 if (session_status() == PHP_SESSION_NONE) {
-    session_start(); // Garantir que a sessão está iniciada
+    session_start();
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -25,143 +23,148 @@ if (!isset($input['csrf_token_backup']) || !isset($_SESSION['csrf_token_backup']
     $userIdForLog = $_SESSION['usuario_id'] ?? 'N/A_CSRF_FAIL';
     $logger->log('SECURITY_WARNING', 'Falha CSRF token em backup_database.php.', ['user_id' => $userIdForLog]);
     echo json_encode(['success' => false, 'message' => 'Erro de segurança (token inválido).']);
+    if ($conexao) sqlsrv_close($conexao);
     exit;
 }
-// Regenerar token após uso, se desejado (não feito no original, mas boa prática em alguns cenários)
-// $_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
-
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     $logger->log('SECURITY_WARNING', 'Tentativa de acesso não autenticado ao backup_database.php.');
     echo json_encode(["success" => false, "message" => "Acesso não autorizado."]);
+    if ($conexao) sqlsrv_close($conexao);
     exit;
 }
 $userIdLogado = $_SESSION['usuario_id'];
-// Adicionar verificação de role de administrador se necessário:
-// if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
-//     $logger->log('SECURITY_WARNING', 'Tentativa de backup por usuário não admin.', ['user_id' => $userIdLogado]);
-//     echo json_encode(["success" => false, "message" => "Permissão negada."]);
-//     exit;
-// }
 
-// As variáveis $db_servername_mysql, $db_username_mysql, $db_password_mysql, $db_database_mysql
-// devem estar definidas em conexao.php
-if (!isset($db_database_mysql, $db_username_mysql, $db_password_mysql, $db_servername_mysql)) {
-    $logger->log('ERROR', 'Variáveis de conexão MySQL não definidas. Verifique conexao.php.', ['user_id' => $userIdLogado]);
+// Variáveis de conexao.php (SQL Server)
+// $db_servername_sqlsrv, $db_username_sqlsrv, $db_password_sqlsrv, $db_database_sqlsrv
+if (!isset($db_database_sqlsrv, $db_servername_sqlsrv)) { // Username/password podem ser omitidos para Autenticação Windows
+    $logger->log('ERROR', 'Variáveis de conexão SQL Server não definidas. Verifique conexao.php.', ['user_id' => $userIdLogado]);
     echo json_encode(["success" => false, "message" => "Erro interno: Configuração de conexão incompleta."]);
+    if ($conexao) sqlsrv_close($conexao);
     exit;
 }
 
-$backupFileBase = $db_database_mysql . '_backup_' . date("Ymd_His");
-$backupFile = $backupFileBase . '.sql'; // Backup MySQL geralmente é .sql
+$backupFileBase = $db_database_sqlsrv . '_backup_' . date("Ymd_His");
+$backupFile = $backupFileBase . '.bak'; // Backup SQL Server geralmente é .bak
 $backupFolder = __DIR__ . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR;
 
 if (!is_dir($backupFolder)) {
-    if (!mkdir($backupFolder, 0775, true)) { // 0775 é uma permissão comum
+    if (!mkdir($backupFolder, 0775, true)) {
         $logger->log('ERROR', 'Falha ao criar pasta de backups.', ['path' => $backupFolder, 'user_id' => $userIdLogado]);
         echo json_encode(["success" => false, "message" => "Erro interno: Não foi possível criar a pasta de backups."]);
+        if ($conexao) sqlsrv_close($conexao);
         exit;
     }
 }
 if (!is_writable($backupFolder)) {
     $logger->log('ERROR', 'Pasta de backups sem permissão de escrita para o PHP.', ['path' => $backupFolder, 'user_id' => $userIdLogado]);
     echo json_encode(["success" => false, "message" => "Erro interno: A pasta de backups não tem permissão de escrita."]);
+    if ($conexao) sqlsrv_close($conexao);
     exit;
 }
 
 $fullPathToBackup = $backupFolder . $backupFile;
 
-// Construir o comando mysqldump
-// ATENÇÃO: Passar senha na linha de comando é um risco de segurança.
-// Considere usar um arquivo de opções do MySQL (my.cnf / .my.cnf) para mysqldump.
-// Ex: mysqldump --defaults-extra-file=/path/to/my_config.cnf NOME_DO_BANCO > backup.sql
-// Ou usar variáveis de ambiente MYSQL_USER, MYSQL_PASSWORD (menos seguro que defaults-file).
-// O uso de escapeshellarg é crucial para segurança.
+// Construir o comando sqlcmd para backup
+// ATENÇÃO: Segurança é crucial.
+// - Autenticação do Windows (-E) é preferível se o PHP rodar com uma conta de usuário apropriada.
+// - Passar senha na linha de comando (-P) é um risco.
+// - O usuário do SQL Server precisa de permissão para BACKUP DATABASE.
+// - O SQL Server precisa ter permissão para escrever no $fullPathToBackup (caminho visto pelo SQL Server, não necessariamente pelo PHP).
+//   Se o SQL Server estiver em outra máquina, o $fullPathToBackup deve ser um caminho acessível por ele (ex: UNC path).
 
-$mysqldumpPath = 'mysqldump'; // Tenta usar o mysqldump do PATH do sistema.
-                              // Se não funcionar, especifique o caminho completo, ex: '/usr/bin/mysqldump' ou 'C:\\xampp\\mysql\\bin\\mysqldump.exe'
+$sqlcmdPath = 'sqlcmd'; // Tenta usar o sqlcmd do PATH. Especifique o caminho completo se necessário.
+                        // Ex: 'C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\170\\Tools\\Binn\\sqlcmd.exe'
 
-// Verifique se o utilitário mysqldump está disponível
-// Você pode adicionar uma verificação mais robusta para a existência do `mysqldumpPath`
-// ou se `shell_exec` está habilitado.
-
-$command = sprintf(
-    '%s --user=%s --password=%s --host=%s --port=%s --single-transaction --skip-lock-tables --routines --triggers %s > %s 2>&1',
-    $mysqldumpPath, // Caminho para o mysqldump
-    escapeshellarg($db_username_mysql),
-    escapeshellarg($db_password_mysql), // RISCO DE SEGURANÇA!
-    escapeshellarg($db_servername_mysql),
-    escapeshellarg(isset($db_port_mysql) ? $db_port_mysql : 3306), // Adicionar porta, padrão 3306
-    escapeshellarg($db_database_mysql),
-    escapeshellarg($fullPathToBackup)
+$backupCommandTsql = sprintf(
+    "BACKUP DATABASE [%s] TO DISK = N'%s' WITH FORMAT, MEDIANAME = N'PHP_Backup_Media', NAME = N'Full Backup of %s';",
+    $db_database_sqlsrv,
+    $fullPathToBackup, // SQL Server deve ter permissão para escrever neste local.
+    $db_database_sqlsrv
 );
-// Adicionado: --single-transaction (para InnoDB, não bloqueia tabelas), --skip-lock-tables, --routines, --triggers
-// Adicionado: --port (definir $db_port_mysql em conexao.php se não for 3306)
-// Adicionado: 2>&1 para redirecionar stderr para stdout para capturar erros no $output.
 
-$logger->log('INFO', 'Tentando executar comando mysqldump.', [
+// Construção do comando sqlcmd
+if (!empty($db_username_sqlsrv) && !empty($db_password_sqlsrv)) {
+    // Usando login SQL - RISCO DE SEGURANÇA COM SENHA NA LINHA DE COMANDO
+    $command = sprintf(
+        '%s -S %s -U %s -P %s -Q "%s" -b -r1', // -b para sair em erro, -r1 para mensagens de erro no stdout
+        escapeshellcmd($sqlcmdPath),
+        escapeshellarg($db_servername_sqlsrv),
+        escapeshellarg($db_username_sqlsrv),
+        escapeshellarg($db_password_sqlsrv), // RISCO!
+        $backupCommandTsql // Não use escapeshellarg aqui pois é parte do -Q
+    );
+    $command_preview = sprintf(
+        '%s -S %s -U %s -P *** -Q "%s" -b -r1',
+        $sqlcmdPath, $db_servername_sqlsrv, $db_username_sqlsrv, $backupCommandTsql
+    );
+} else {
+    // Usando Autenticação do Windows (preferível se configurável)
+    $command = sprintf(
+        '%s -S %s -E -Q "%s" -b -r1',
+        escapeshellcmd($sqlcmdPath),
+        escapeshellarg($db_servername_sqlsrv),
+        $backupCommandTsql
+    );
+     $command_preview = sprintf(
+        '%s -S %s -E -Q "%s" -b -r1',
+        $sqlcmdPath, $db_servername_sqlsrv, $backupCommandTsql
+    );
+}
+
+
+$logger->log('INFO', 'Tentando executar comando sqlcmd para backup SQL Server.', [
     'user_id' => $userIdLogado,
-    'command_preview' => sprintf( // Não logar a senha
-        '%s --user=%s --password=*** --host=%s --port=%s --single-transaction --skip-lock-tables --routines --triggers %s > %s',
-        $mysqldumpPath,
-        $db_username_mysql,
-        $db_servername_mysql,
-        isset($db_port_mysql) ? $db_port_mysql : 3306,
-        $db_database_mysql,
-        $fullPathToBackup
-    )
+    'command_preview' => $command_preview
 ]);
 
-$output = shell_exec($command);
+// shell_exec pode não retornar stderr adequadamente sem redirecionamento.
+// A opção -r1 no sqlcmd envia mensagens de erro para stdout.
+$output = shell_exec($command . " 2>&1"); // Redireciona stderr para stdout
 $criticalErrorOccurred = false;
-$userVisibleError = "Falha ao executar o backup do MySQL.";
+$userVisibleError = "Falha ao executar o backup do SQL Server.";
 
-// Verificar o resultado
-// shell_exec retorna NULL em caso de erro ou se o comando não produzir saída.
-// Se $output não for NULL e contiver mensagens de erro, ou se o arquivo não for criado/estiver vazio.
-
-if ($output !== null && $output !== '') { // Se mysqldump produziu alguma saída (geralmente erros)
-    // Verificar por strings comuns de erro no output.
-    // mysqldump geralmente é silencioso em caso de sucesso.
-    if (preg_match('/error|denied|fail|unable/i', $output) && !preg_match('/\[warning\]|Using a password on the command line interface can be insecure/i', $output) ) {
+if ($output !== null && $output !== '') {
+    // sqlcmd pode retornar mensagens mesmo em sucesso. Procurar por erros explícitos.
+    // Ex: "Msg...", "Error:", "failed"
+    if (preg_match('/Msg|Error|failed|Cannot open backup device|Access is denied/i', $output) && 
+        !preg_match('/Processed \d+ pages for database|BACKUP DATABASE successfully processed/i', $output) ) {
         $criticalErrorOccurred = true;
-        $logger->log('ERROR', 'mysqldump produziu saída que parece ser um erro.', ['user_id' => $userIdLogado, 'output' => $output, 'file_path' => $fullPathToBackup]);
-        $userVisibleError .= " Detalhe da saída: " . htmlentities(substr($output, 0, 250));
+        $logger->log('ERROR', 'sqlcmd produziu saída que parece ser um erro de backup.', ['user_id' => $userIdLogado, 'output' => $output, 'file_path' => $fullPathToBackup]);
+        $userVisibleError .= " Detalhe da saída: " . htmlentities(substr($output, 0, 350));
     } else {
-        // Pode haver warnings que não são críticos, mas vale a pena logar
-        $logger->log('INFO', 'mysqldump produziu saída (possivelmente warnings).', ['user_id' => $userIdLogado, 'output' => $output, 'file_path' => $fullPathToBackup]);
+        $logger->log('INFO', 'sqlcmd produziu saída.', ['user_id' => $userIdLogado, 'output' => $output, 'file_path' => $fullPathToBackup]);
     }
 }
 
 
 if (!$criticalErrorOccurred) {
-    // Mesmo que mysqldump não retorne erro explícito, verificar se o arquivo foi criado e não está vazio.
     if (file_exists($fullPathToBackup) && filesize($fullPathToBackup) > 0) {
-        $logger->log('INFO', 'Backup MySQL realizado com sucesso e arquivo verificado.', ['user_id' => $userIdLogado, 'file' => $fullPathToBackup, 'size' => filesize($fullPathToBackup)]);
+        $logger->log('INFO', 'Backup SQL Server (.bak) realizado com sucesso e arquivo verificado.', ['user_id' => $userIdLogado, 'file' => $fullPathToBackup, 'size' => filesize($fullPathToBackup)]);
 
-        $downloadScriptName = 'download_backup_file.php';
+        $downloadScriptName = 'download_backup_file.php'; // Este script precisaria ser seguro
         $siteUrl = defined('SITE_URL') ? rtrim(SITE_URL, '/') : '';
         $downloadUrl = $siteUrl . '/' . $downloadScriptName . '?file=' . urlencode(basename($fullPathToBackup));
 
         echo json_encode([
             "success" => true,
-            "message" => "Backup do banco de dados MySQL concluído com sucesso!",
+            "message" => "Backup do banco de dados SQL Server concluído com sucesso!",
             "download_url" => $downloadUrl,
             "filename" => basename($fullPathToBackup)
         ]);
     } else {
-        $criticalErrorOccurred = true; // Marcar como erro se o arquivo não for válido
-        $logMessage = 'Arquivo de backup MySQL NÃO encontrado ou está vazio após comando mysqldump.';
+        $criticalErrorOccurred = true;
+        $logMessage = 'Arquivo de backup SQL Server (.bak) NÃO encontrado ou está vazio após comando sqlcmd.';
         $logContext = [
             'user_id' => $userIdLogado,
             'file_expected' => $fullPathToBackup,
             'exists' => file_exists($fullPathToBackup),
             'size' => file_exists($fullPathToBackup) ? filesize($fullPathToBackup) : 'N/A',
-            'mysqldump_output' => $output
+            'sqlcmd_output' => $output
         ];
         $logger->log('ERROR', $logMessage, $logContext);
-        $userVisibleError = "Erro: O arquivo de backup MySQL não foi gerado corretamente ou está vazio.";
-        if (!empty($output) && !preg_match('/Using a password on the command line interface can be insecure/i', $output)) {
+        $userVisibleError = "Erro: O arquivo de backup SQL Server não foi gerado corretamente ou está vazio.";
+        if (!empty($output)) {
              $userVisibleError .= " Detalhe da saída: " . htmlentities(substr($output,0,200));
         }
     }
@@ -172,6 +175,6 @@ if ($criticalErrorOccurred) {
 }
 
 if ($conexao) {
-    mysqli_close($conexao);
+    sqlsrv_close($conexao);
 }
 exit;

@@ -1,11 +1,11 @@
 <?php
-// LogHelper.php
+// LogHelper.php (Adaptado para SQL Server)
 
 class LogHelper {
-    private $conexao; // Agora será uma conexão MySQLi
+    private $conexao; // Agora será um recurso de conexão SQLSRV
 
     public function __construct($db_connection) {
-        // $db_connection deve ser um objeto mysqli se a conexão com o BD for usada.
+        // $db_connection deve ser um recurso sqlsrv se a conexão com o BD for usada.
         $this->conexao = $db_connection;
     }
 
@@ -18,41 +18,39 @@ class LogHelper {
      * @param int|null $userId ID do usuário associado ao log (opcional).
      */
     public function log($level, $message, $context = [], $userId = null) {
-        if (!$this->conexao || !($this->conexao instanceof \mysqli)) { // Verifica se é uma instância válida de mysqli
-            // Não pode logar sem conexão com o BD ou se a conexão não for do tipo esperado
+        // Verifica se é um recurso de conexão sqlsrv válido
+        if (!$this->conexao || !is_resource($this->conexao) || get_resource_type($this->conexao) !== 'SQL Server Connection') {
             $timestamp = date('Y-m-d H:i:s');
-            error_log("{$timestamp} LogHelper: Falha ao logar - Sem conexão com BD ou tipo de conexão inválida. Nível: {$level}, Mensagem: {$message}, Contexto: " . json_encode($context));
+            error_log("{$timestamp} LogHelper: Falha ao logar - Sem conexão com BD ou tipo de conexão inválida (esperado SQLSRV). Nível: {$level}, Mensagem: {$message}, Contexto: " . json_encode($context));
             return;
         }
 
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
-        // Contexto pode ser nulo se vazio, para evitar armazenar '[]' explicitamente se a coluna permitir NULL
         $context_json = !empty($context) ? json_encode($context) : null;
 
-        // Adicionando crases para nomes de tabelas e colunas
-        $sql = "INSERT INTO `system_logs` (`log_level`, `message`, `context`, `ip_address`, `user_id`) VALUES (?, ?, ?, ?, ?)";
+        // SQL Server não usa backticks. Colchetes são opcionais para nomes simples.
+        $sql = "INSERT INTO system_logs (log_level, message, context, ip_address, user_id) VALUES (?, ?, ?, ?, ?)";
         
-        $stmt = mysqli_prepare($this->conexao, $sql);
+        // Parâmetros para sqlsrv. NULL é tratado diretamente.
+        $params = [$level, $message, $context_json, $ip_address, $userId];
 
-        if ($stmt) {
-            // Definindo os tipos de parâmetros para mysqli_stmt_bind_param:
-            // s = string, i = integer
-            // log_level (s), message (s), context_json (s), ip_address (s), user_id (i)
-            // $userId pode ser null, mysqli_stmt_bind_param lida com isso para tipos 'i' (integer)
-            mysqli_stmt_bind_param($stmt, "ssssi", $level, $message, $context_json, $ip_address, $userId);
+        // sqlsrv_prepare e sqlsrv_execute ou diretamente sqlsrv_query para INSERTs
+        $stmt = sqlsrv_query($this->conexao, $sql, $params);
 
-            if (!mysqli_stmt_execute($stmt)) {
-                // Se o log falhar, registra no log de erros do PHP como fallback
-                $mysql_stmt_error = mysqli_stmt_error($stmt);
-                $timestamp = date('Y-m-d H:i:s');
-                error_log("{$timestamp} LogHelper: Falha ao executar statement de log no BD (MySQLi). Nível: {$level}, Mensagem Original: {$message}, Erro MySQLi Stmt: " . $mysql_stmt_error . ", Contexto: " . json_encode($context));
-            }
-            mysqli_stmt_close($stmt);
-        } else {
-            // Falha ao preparar o statement
-            $mysql_error = mysqli_error($this->conexao);
+        if ($stmt === false) {
+            // Se o log falhar, registra no log de erros do PHP como fallback
+            $sqlsrv_errors = sqlsrv_errors();
             $timestamp = date('Y-m-d H:i:s');
-            error_log("{$timestamp} LogHelper: Falha ao preparar statement de log no BD (MySQLi). Nível: {$level}, Mensagem Original: {$message}, Erro MySQLi: " . $mysql_error . ", Contexto: " . json_encode($context));
+            $error_message_sqlsrv = "";
+            if ($sqlsrv_errors) {
+                foreach($sqlsrv_errors as $error) {
+                    $error_message_sqlsrv .= "SQLSTATE: ".$error['SQLSTATE'].", Code: ".$error['code'].", Message: ".$error['message']."\n";
+                }
+            }
+            error_log("{$timestamp} LogHelper: Falha ao executar statement de log no BD (SQLSRV). Nível: {$level}, Mensagem Original: {$message}, Erro SQLSRV: " . $error_message_sqlsrv . ", Contexto: " . json_encode($context));
+        } else {
+            // Libera o statement se a execução foi bem-sucedida
+            sqlsrv_free_stmt($stmt);
         }
     }
 }

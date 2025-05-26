@@ -1,38 +1,53 @@
 <?php
-// conexao.php (Adaptado para MySQLi)
+// conexao.php (Adaptado para SQL Server)
 
-// Definição das variáveis de conexão para MySQL
-// Substitua pelos seus dados de conexão MySQL
-$db_servername_mysql = "localhost"; // Endereço do servidor MySQL (geralmente localhost)
-$db_username_mysql   = "sa";       // Nome de usuário do MySQL
-$db_password_mysql   = "SA_0bjetiva";         // Senha do MySQL
-$db_database_mysql   = "simposto";      // Nome do banco de dados MySQL
+// Definição das variáveis de conexão para SQL Server
+// Substitua pelos seus dados de conexão SQL Server
+$db_servername_sqlsrv = "SEU_SERVIDOR_SQL"; // Ex: "localhost", "SERVIDOR\INSTANCIA", "SERVIDOR,PORTA"
+$db_username_sqlsrv   = "seu_usuario_sql";       // Nome de usuário do SQL Server (pode ser omitido para Autenticação do Windows)
+$db_password_sqlsrv   = "sua_senha_sql";         // Senha do SQL Server (pode ser omitido para Autenticação do Windows)
+$db_database_sqlsrv   = "simposto";      // Nome do banco de dados SQL Server
 
-// Tentativa de estabelecer a conexão com o banco de dados MySQL
-$conexao = mysqli_connect($db_servername_mysql, $db_username_mysql, $db_password_mysql, $db_database_mysql);
+// Informações de conexão para SQLSRV
+$connectionInfo = array(
+    "Database" => $db_database_sqlsrv,
+    "CharacterSet" => "UTF-8" // Recomendado para consistência
+);
+
+// Adicionar UID e PWD se não for usar Autenticação do Windows
+if (!empty($db_username_sqlsrv)) {
+    $connectionInfo["UID"] = $db_username_sqlsrv;
+    $connectionInfo["PWD"] = $db_password_sqlsrv;
+}
+// Se estiver usando Autenticação do Windows, $db_username_sqlsrv e $db_password_sqlsrv podem ser vazios
+// e o PHP precisa rodar sob uma conta de usuário com acesso ao SQL Server.
+
+// Tentativa de estabelecer a conexão com o banco de dados SQL Server
+$conexao = sqlsrv_connect($db_servername_sqlsrv, $connectionInfo);
 
 // Verificação da conexão
 if ($conexao === false) {
     // Se a conexão falhar, registra o erro e encerra o script.
-    // Em um ambiente de produção, evite exibir mysqli_connect_error() diretamente ao usuário.
-    $error_msg = "Erro de conexão com o banco de dados MySQL em conexao.php: (" . mysqli_connect_errno() . ") " . mysqli_connect_error();
-    error_log($error_msg); // Loga o erro no log do servidor
+    // Em um ambiente de produção, evite exibir sqlsrv_errors() diretamente ao usuário.
+    $error_msg_sqlsrv = "Erro de conexão com o banco de dados SQL Server em conexao.php: ";
+    if (($errors = sqlsrv_errors()) != null) {
+        foreach ($errors as $error) {
+            $error_msg_sqlsrv .= "SQLSTATE: " . $error['SQLSTATE'] . "; code: " . $error['code'] . "; message: " . $error['message'] . " | ";
+        }
+    } else {
+        $error_msg_sqlsrv .= "Erro desconhecido ao tentar conectar.";
+    }
+    error_log($error_msg_sqlsrv); // Loga o erro no log do servidor
 
     // Resposta genérica para o usuário ou tratamento específico da API
-    // Se for uma API JSON, você pode querer retornar um JSON:
     // header('Content-Type: application/json');
     // http_response_code(503); // Service Unavailable
     // echo json_encode(['success' => false, 'message' => 'Erro crítico: não foi possível conectar ao banco de dados.']);
     // exit;
 
-    die($error_msg); // Para desenvolvimento, pode ser útil. Em produção, remova ou substitua.
+    die($error_msg_sqlsrv); // Para desenvolvimento, pode ser útil. Em produção, remova ou substitua.
 }
 
-// Define o charset da conexão para UTF-8 (ou utf8mb4 para suporte completo a Unicode)
-if (!mysqli_set_charset($conexao, "utf8mb4")) {
-    $error_msg = "Erro ao definir o charset da conexão MySQL para utf8mb4: " . mysqli_error($conexao);
-    error_log($error_msg);
-    // Considere se isso é um erro fatal para sua aplicação
-}
-
-// A variável $conexao (objeto mysqli) permanece disponível se este script for incluído por outro.
+// A variável $conexao (recurso sqlsrv) permanece disponível se este script for incluído por outro.
+// Não há um equivalente direto de mysqli_set_charset para sqlsrv após a conexão,
+// o charset é definido em $connectionInfo.

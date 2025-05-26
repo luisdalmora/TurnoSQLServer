@@ -1,29 +1,24 @@
 <?php
-// carregar_feriados.php
+// carregar_feriados.php (Adaptado para SQL Server onde relevante)
 require_once __DIR__ . '/config.php';
-// conexao.php não é mais estritamente necessário aqui se LogHelper e GCalHelper não usarem BD.
-// Se LogHelper ainda loga no BD, conexao.php é necessário para LogHelper.
-require_once __DIR__ . '/conexao.php'; // Mantido caso LogHelper use BD
-require_once __DIR__ . '/LogHelper.php';
-require_once __DIR__ . '/GoogleCalendarHelper.php'; // Agora simplificado
+require_once __DIR__ . '/conexao.php'; // Mantido caso LogHelper use BD SQLSRV
+require_once __DIR__ . '/LogHelper.php'; // Assegure que LogHelper.php está adaptado para SQLSRV
+require_once __DIR__ . '/GoogleCalendarHelper.php';
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-$logger = new LogHelper($conexao); // LogHelper pode ainda precisar da conexão
-$gcalHelper = new GoogleCalendarHelper($logger); // Não passa mais $conexao
+$logger = new LogHelper($conexao); // $conexao é um recurso SQLSRV
+$gcalHelper = new GoogleCalendarHelper($logger);
 
 header('Content-Type: application/json');
 
-// A verificação de login pode ser mantida por segurança geral do endpoint,
-// mesmo que a busca de feriados seja de um calendário público.
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
-    if (isset($conexao) && $conexao) { mysqli_close($conexao); }
+    if (isset($conexao) && $conexao) { sqlsrv_close($conexao); } // Fechar conexão SQLSRV
     exit;
 }
-// $userId = $_SESSION['usuario_id']; // Não é mais passado para listEventsFromCalendar
 
 $ano = filter_input(INPUT_GET, 'ano', FILTER_VALIDATE_INT) ?: (int)date('Y');
 $mes = filter_input(INPUT_GET, 'mes', FILTER_VALIDATE_INT) ?: (int)date('m');
@@ -36,7 +31,7 @@ try {
 } catch (Exception $e) {
     $logger->log('ERROR', 'Data inválida fornecida para carregar feriados.', ['ano' => $ano, 'mes' => $mes, 'error' => $e->getMessage()]);
     echo json_encode(['success' => false, 'message' => 'Data fornecida inválida.']);
-    if (isset($conexao) && $conexao) { mysqli_close($conexao); }
+    if (isset($conexao) && $conexao) { sqlsrv_close($conexao); } // Fechar conexão SQLSRV
     exit;
 }
 
@@ -47,12 +42,11 @@ $params = [
     'timeMax' => $timeMax->format(DateTimeInterface::RFC3339)
 ];
 
-// $userId não é mais necessário para esta chamada
 $eventos = $gcalHelper->listEventsFromCalendar($calendarId, $params);
 
 if ($eventos === null) {
     echo json_encode(['success' => false, 'message' => 'Não foi possível buscar os feriados do Google Calendar. Verifique as configurações da API Key.']);
-    if (isset($conexao) && $conexao) { mysqli_close($conexao); }
+    if (isset($conexao) && $conexao) { sqlsrv_close($conexao); } // Fechar conexão SQLSRV
     exit;
 }
 
@@ -86,5 +80,5 @@ if (!empty($eventos)) {
 echo json_encode(['success' => true, 'feriados' => $feriadosFormatados]);
 
 if (isset($conexao) && $conexao) {
-    mysqli_close($conexao);
+    sqlsrv_close($conexao); // Fechar conexão SQLSRV
 }

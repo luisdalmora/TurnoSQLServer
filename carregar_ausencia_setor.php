@@ -1,7 +1,8 @@
 <?php
+// carregar_ausencia_setor.php (Adaptado para SQL Server)
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php';
-require_once __DIR__ . '/LogHelper.php';
+require_once __DIR__ . '/conexao.php'; // SQLSRV
+require_once __DIR__ . '/LogHelper.php'; // SQLSRV
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -11,7 +12,7 @@ header('Content-Type: application/json');
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
-    if (isset($conexao) && $conexao) { mysqli_close($conexao); }
+    if (isset($conexao) && $conexao) { sqlsrv_close($conexao); }
     exit;
 }
 
@@ -23,53 +24,45 @@ $ausencias_setor_db = [];
 
 if ($conexao) {
     $primeiroDiaMesFiltro = sprintf('%04d-%02d-01', $ano, $mes);
+    // Para SQL Server, é importante que o formato da data seja YYYY-MM-DD para evitar ambiguidades
     $ultimoDiaMesFiltro = date('Y-m-t', strtotime($primeiroDiaMesFiltro));
 
-    // Query para buscar todas as ausências do usuário no período,
-    // usando a coluna 'colaborador_nome' da tabela 'ausencias'.
-    // O FILTRO POR 'observacoes LIKE "%Setor%"' FOI REMOVIDO.
-    $sql = "SELECT DATE_FORMAT(a.data_inicio, '%d/%m') as data, 
+
+    // Query para SQL Server:
+    // - FORMAT(a.data_inicio, 'dd/MM', 'pt-BR') para formatar data (requer SQL Server 2012+)
+    // - Sem backticks
+    $sql = "SELECT FORMAT(a.data_inicio, 'dd/MM', 'pt-BR') as data, 
                    a.colaborador_nome as colaborador 
             FROM ausencias a
-            WHERE a.criado_por_usuario_id = ?       -- Param 1 (i)
-              -- AND a.observacoes LIKE ?           -- FILTRO REMOVIDO
+            WHERE a.criado_por_usuario_id = ?
               AND ( 
-                 (a.data_inicio >= ? AND a.data_inicio <= ?) OR  -- Params 2 (s), 3 (s)
-                 (a.data_fim >= ? AND a.data_fim <= ?) OR        -- Params 4 (s), 5 (s)
-                 (a.data_inicio < ? AND a.data_fim > ?)          -- Params 6 (s), 7 (s)
+                 (a.data_inicio >= ? AND a.data_inicio <= ?) OR
+                 (a.data_fim >= ? AND a.data_fim <= ?) OR
+                 (a.data_inicio < ? AND a.data_fim > ?)
               )
             ORDER BY a.data_inicio ASC";
     
-    $stmt = mysqli_prepare($conexao, $sql);
-    if ($stmt) {
-        // String de tipos agora tem um 's' a menos: i, s, s, s, s, s, s -> issssss
-        mysqli_stmt_bind_param($stmt, "issssss", 
-            $userId,                       // para criado_por_usuario_id = ?
-            // $filtro_palavra_chave_setor,   // Removido
-            $primeiroDiaMesFiltro,         // para data_inicio >= ?
-            $ultimoDiaMesFiltro,           // para data_inicio <= ?
-            $primeiroDiaMesFiltro,         // para data_fim >= ?
-            $ultimoDiaMesFiltro,           // para data_fim <= ?
-            $primeiroDiaMesFiltro,         // para data_inicio < ?
-            $ultimoDiaMesFiltro            // para data_fim > ?
-        );
+    $params = array(
+        $userId,
+        $primeiroDiaMesFiltro, $ultimoDiaMesFiltro,
+        $primeiroDiaMesFiltro, $ultimoDiaMesFiltro,
+        $primeiroDiaMesFiltro, $ultimoDiaMesFiltro
+    );
+    
+    $stmt = sqlsrv_query($conexao, $sql, $params); // sqlsrv_query para SELECT com parâmetros
 
-        if (mysqli_stmt_execute($stmt)) {
-            $result = mysqli_stmt_get_result($stmt);
-            while ($row = mysqli_fetch_assoc($result)) {
-                $ausencias_setor_db[] = [
-                    'data' => $row['data'],
-                    'colaborador' => $row['colaborador'] ?: 'N/A' 
-                ];
-            }
-            mysqli_free_result($result);
-            $logger->log('INFO', 'Busca de ausência setor (SEM filtro obs, usando colaborador_nome) realizada.', ['user_id' => $userId, 'ano' => $ano, 'mes' => $mes, 'count' => count($ausencias_setor_db)]);
-        } else {
-            $logger->log('ERROR', 'Erro ao executar busca ausencias_setor: ' . mysqli_stmt_error($stmt), ['user_id' => $userId]);
+    if ($stmt) {
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $ausencias_setor_db[] = [
+                'data' => $row['data'],
+                'colaborador' => $row['colaborador'] ?: 'N/A' 
+            ];
         }
-        mysqli_stmt_close($stmt);
+        sqlsrv_free_stmt($stmt);
+        $logger->log('INFO', 'Busca de ausência setor (SQL Server) realizada.', ['user_id' => $userId, 'ano' => $ano, 'mes' => $mes, 'count' => count($ausencias_setor_db)]);
     } else {
-        $logger->log('ERROR', 'Erro ao preparar query ausencias_setor: ' . mysqli_error($conexao), ['user_id' => $userId, 'sql_query' => $sql]);
+        $errors = sqlsrv_errors();
+        $logger->log('ERROR', 'Erro ao executar busca ausencias_setor (SQL Server): ' . print_r($errors, true), ['user_id' => $userId]);
     }
 } else {
      $logger->log('ERROR', 'Sem conexão com o banco de dados em carregar_ausencia_setor.php', ['user_id' => $userId]);
@@ -78,5 +71,5 @@ if ($conexao) {
 echo json_encode(['success' => true, 'ausencias' => $ausencias_setor_db]);
 
 if (isset($conexao) && $conexao) {
-    mysqli_close($conexao);
+    sqlsrv_close($conexao);
 }
