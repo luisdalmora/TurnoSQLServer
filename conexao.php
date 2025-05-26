@@ -3,7 +3,7 @@
 
 // Definição das variáveis de conexão para SQL Server
 // Substitua pelos seus dados de conexão SQL Server
-$db_servername_sqlsrv = "localhost"; // Ex: "localhost", "SERVIDOR\INSTANCIA", "SERVIDOR,PORTA"
+$db_servername_sqlsrv = "SimPosto-Luis\sqlexpress"; // Ex: "localhost", "SERVIDOR\INSTANCIA", "SERVIDOR,PORTA"
 $db_username_sqlsrv   = "sa";       // Nome de usuário do SQL Server (pode ser omitido para Autenticação do Windows)
 $db_password_sqlsrv   = "SA_0bjetiva";         // Senha do SQL Server (pode ser omitido para Autenticação do Windows)
 $db_database_sqlsrv   = "simposto";      // Nome do banco de dados SQL Server
