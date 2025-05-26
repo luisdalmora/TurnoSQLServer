@@ -45,6 +45,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     $cargo = ($cargo_input !== null && trim($cargo_input) === '') ? null : $cargo_input;
 
+$logger->log('DEBUG', 'Dados para inserção de colaborador:', [
+    'nome_completo_para_inserir' => $nome_completo,
+    'email_para_inserir' => $email, // Este é o valor que será enviado ao BD
+    'cargo_para_inserir' => $cargo,
+    'ativo_para_inserir' => $ativo,
+    'POST_data' => $_POST // Para ver o que veio do formulário
+]);
+
     // SQL para SQL Server: usa SCOPE_IDENTITY() para pegar o ID. Sem crases.
     // A coluna 'ativo' no SQL Server deve ser do tipo BIT ou INT.
     $sql = "INSERT INTO colaboradores (nome_completo, email, cargo, ativo) VALUES (?, ?, ?, ?); SELECT SCOPE_IDENTITY() AS id;";

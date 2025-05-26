@@ -14,7 +14,14 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
 }
 
 $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
-// Se precisar de um token CSRF específico para esta página, gere aqui:
+
+// Token CSRF para backup (consistente com home.php)
+if (empty($_SESSION['csrf_token_backup'])) {
+    $_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
+}
+$csrfTokenBackup = $_SESSION['csrf_token_backup'];
+
+// Se precisar de um token CSRF específico para esta página (além do backup), gere aqui:
 // if (empty($_SESSION['csrf_token_gerador_senhas'])) {
 // $_SESSION['csrf_token_gerador_senhas'] = bin2hex(random_bytes(32));
 // }
@@ -63,15 +70,10 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
             </nav>
             <div class="p-2 border-t border-white/10">
                  <div class="px-2 py-1 space-y-1.5">
-                    <?php
-                    // Exemplo: Botão de Backup, se você tiver o token CSRF para ele
-                    if (isset($_SESSION['csrf_token_backup'])) {
-                        echo '<input type="hidden" id="csrf-token-backup" value="' . htmlspecialchars($_SESSION['csrf_token_backup']) . '">';
-                        echo '<a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm">';
-                        echo '<i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup BD';
-                        echo '</a>';
-                    }
-                    ?>
+                    <input type="hidden" id="csrf-token-backup" value="<?php echo htmlspecialchars($csrfTokenBackup); ?>">
+                    <a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm">
+                        <i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup Banco de Dados
+                    </a>
                 </div>
                 <div class="px-2 py-1 mt-1.5">
                     <a href="logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm">

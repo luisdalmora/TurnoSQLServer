@@ -12,11 +12,18 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     exit;
 }
 
-// Gerar/obter token CSRF para esta página
-if (empty($_SESSION['csrf_token_reports'])) { // Usando um nome de token específico para esta página/formulário
+// Gerar/obter token CSRF para esta página de relatórios
+if (empty($_SESSION['csrf_token_reports'])) {
     $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
 }
 $csrfTokenReports = $_SESSION['csrf_token_reports'];
+
+// Token CSRF para backup (consistente com home.php)
+if (empty($_SESSION['csrf_token_backup'])) {
+    $_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
+}
+$csrfTokenBackup = $_SESSION['csrf_token_backup'];
+
 
 $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
 ?>
@@ -56,11 +63,13 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
          </a>
       </nav>
       <div class="p-2 border-t border-white/10">
-        <div class="px-2 py-1">
-            <a href="google_auth_redirect.php" class="flex items-center justify-center w-full px-3 py-2 mb-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium transition-colors text-sm" id="connect-gcal-btn" style="display: none;"> <i data-lucide="link" class="w-4 h-4 mr-2"></i> Conectar Google
+        <div class="px-2 py-1 space-y-1.5">
+            <input type="hidden" id="csrf-token-backup" value="<?php echo htmlspecialchars($csrfTokenBackup); ?>">
+            <a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm">
+                <i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup Banco de Dados
             </a>
         </div>
-        <div class="px-2 py-1">
+        <div class="px-2 py-1 mt-1.5">
             <a href="logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm">
                 <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Sair
             </a>
@@ -146,9 +155,10 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
         lucide.createIcons();
       }
       // Script para GCal button status (copiado do script.js ou home.php)
-      if (typeof checkGCalConnectionStatus === 'function') {
-        checkGCalConnectionStatus();
-      }
+      // Mantido caso você queira reativar a funcionalidade do GCal no futuro.
+      // if (typeof checkGCalConnectionStatus === 'function') {
+      //   checkGCalConnectionStatus();
+      // }
     });
   </script>
 </body>

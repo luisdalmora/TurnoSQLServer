@@ -18,6 +18,12 @@ if (empty($_SESSION['csrf_token_colab_manage'])) {
     $_SESSION['csrf_token_colab_manage'] = bin2hex(random_bytes(32));
 }
 $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
+
+// Token CSRF para backup (consistente com home.php)
+if (empty($_SESSION['csrf_token_backup'])) {
+    $_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
+}
+$csrfTokenBackup = $_SESSION['csrf_token_backup'];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -85,14 +91,19 @@ $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
             </a>
             <a href="gerenciar_colaboradores.php" class="flex items-center px-3 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm">
               <i data-lucide="users" class="w-5 h-5 mr-3"></i> Colaboradores
+            </a>
              <a href="gerador_senhas.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
              <i data-lucide="key-round" class="w-5 h-5 mr-3"></i> Gerador de Senhas
              </a>
-            </a>
           </nav>
           <div class="p-2 border-t border-white/10">
-
-            <div class="px-2 py-1">
+            <div class="px-2 py-1 space-y-1.5">
+                <input type="hidden" id="csrf-token-backup" value="<?php echo htmlspecialchars($csrfTokenBackup); ?>">
+                <a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm">
+                    <i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup Banco de Dados
+                </a>
+            </div>
+            <div class="px-2 py-1 mt-1.5">
                 <a href="logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm">
                     <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Sair
                 </a>
@@ -151,7 +162,7 @@ $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
                 <input type="hidden" id="edit-csrf-token" name="csrf_token" value="<?php echo htmlspecialchars($csrfTokenColabManage); ?>">
                 <button type="button" class="modal-close-button" id="modal-close-btn" title="Fechar"><i data-lucide="x"></i></button>
                 <h2 class="text-xl font-semibold text-gray-900 mb-4 border-b pb-2">Editar Colaborador</h2>
-                
+
                 <div class="form-group-modal">
                     <label for="edit-nome_completo" class="text-sm font-medium text-gray-700">Nome Completo:</label>
                     <input type="text" id="edit-nome_completo" name="nome_completo" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
@@ -182,14 +193,16 @@ $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
         lucide.createIcons();
       }
       // Script para GCal button status
-      if (typeof checkGCalConnectionStatus === 'function') {
-        checkGCalConnectionStatus();
-      }
+      // Mantido caso você queira reativar a funcionalidade do GCal no futuro.
+      // if (typeof checkGCalConnectionStatus === 'function') {
+      //   checkGCalConnectionStatus();
+      // }
 
       <?php
         if (isset($_SESSION['flash_message']) && is_array($_SESSION['flash_message'])) {
             $flash = $_SESSION['flash_message'];
-            echo "if(typeof showToast === 'function'){ showToast('" . addslashes($flash['message']) . "', '" . addslashes($flash['type']) . "', 5000); } else { alert('" . addslashes($flash['message']) . "'); }";
+            // Tenta usar a função showToast global (importada via gerenciar_colaboradores.js -> utils.js)
+            echo "if(typeof showToast === 'function'){ showToast('" . addslashes($flash['message']) . "', '" . addslashes($flash['type']) . "', 5000); } else { alert('" . addslashes(ucfirst($flash['type'])) . ": " . addslashes($flash['message']) . "'); }";
             unset($_SESSION['flash_message']);
         }
       ?>

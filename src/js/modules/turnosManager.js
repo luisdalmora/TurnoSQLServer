@@ -8,6 +8,7 @@ import {
   tailwindCheckboxClasses,
   buscarEArmazenarColaboradores,
   todosOsColaboradores as colaboradoresGlobais, // Importa a variável para uso direto
+  nomesMeses, // Importa nomesMeses para formatar a data atual
 } from "./utils.js";
 import * as state from "./state.js"; // Para acessar currentDisplayYear, currentDisplayMonth
 import { updateCurrentMonthYearDisplayTurnos } from "./uiUpdater.js";
@@ -606,20 +607,32 @@ export function initTurnosEventListeners() {
       inputChk.className = `shift-select-checkbox ${tailwindCheckboxClasses}`;
       cell.appendChild(inputChk);
 
+      // *** INÍCIO DAS MODIFICAÇÕES ***
+      const dataAtual = new Date();
+      const dia = String(dataAtual.getDate()).padStart(2, "0");
+      // const mesNumero = dataAtual.getMonth() + 1; // 1-12
+      // const nomeMesAtual = nomesMeses[mesNumero] || String(mesNumero).padStart(2, '0'); // Usa o nome do mês ou número se não encontrar
+      const nomeMesAtual =
+        nomesMeses[state.currentDisplayMonth] ||
+        `Mês ${state.currentDisplayMonth}`;
+
       cell = nLinha.insertCell();
       cell.className = "p-1";
       let inputData = document.createElement("input");
       inputData.type = "text";
       inputData.className = `shift-date ${tailwindInputClasses}`;
+      // inputData.value = `${dia}/${nomeMesAtual}`; // Define o valor padrão para dd/Mês atual
+      inputData.value = `${dia}/${nomeMesAtual.substring(0, 3)}`; // Usa os primeiros 3 caracteres do nome do mês
       inputData.placeholder = "dd/Mês";
       cell.appendChild(inputData);
-      inputData.focus();
+      // inputData.focus(); // Pode ser útil, mas vamos focar primeiro na data
 
       cell = nLinha.insertCell();
       cell.className = "p-1";
       let inputInicio = document.createElement("input");
       inputInicio.type = "time";
       inputInicio.className = `shift-time-inicio ${tailwindInputClasses}`;
+      inputInicio.value = "08:00"; // Define o valor padrão para Início
       cell.appendChild(inputInicio);
 
       cell = nLinha.insertCell();
@@ -627,7 +640,9 @@ export function initTurnosEventListeners() {
       let inputFim = document.createElement("input");
       inputFim.type = "time";
       inputFim.className = `shift-time-fim ${tailwindInputClasses}`;
+      inputFim.value = "12:00"; // Define o valor padrão para Fim
       cell.appendChild(inputFim);
+      // *** FIM DAS MODIFICAÇÕES ***
 
       cell = nLinha.insertCell();
       cell.className = "p-1";
@@ -635,6 +650,9 @@ export function initTurnosEventListeners() {
       selColab.className = `shift-employee shift-employee-select ${tailwindSelectClasses}`;
       popularSelectColaborador(selColab, null, colaboradoresGlobais);
       cell.appendChild(selColab);
+
+      // Focar no campo de data após adicionar
+      if (inputData) inputData.focus();
     });
   }
 
