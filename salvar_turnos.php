@@ -117,14 +117,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $logger->log('ERROR', 'Erro ao executar consulta GET turnos (SQLSRV).', ['sqlsrv_errors' => $errors, 'user_id' => $userId]);
         fecharConexaoSalvarTurnosESair($conexao, ['success' => false, 'message' => 'Erro ao executar consulta.', 'csrf_token' => $novoCsrfTokenParaCliente]);
     }
-    $turnos_carregados = [];
-    while ($row = sqlsrv_fetch_array($stmt_get, SQLSRV_FETCH_ASSOC)) {
-        // SQLSRV retorna datas/horas como objetos DateTime. Formatamos para o cliente.
-        $row['data'] = ($row['data_original_db'] instanceof DateTimeInterface) ? $row['data_original_db']->format('Y-m-d') : $row['data_original_db'];
-        $row['hora_inicio'] = $row['hora_inicio_formatada']; // Já formatado na query
-        $row['hora_fim'] = $row['hora_fim_formatada']; // Já formatado na query
-        unset($row['data_original_db'], $row['hora_inicio_original_db'], $row['hora_fim_original_db']);
-        $turnos_carregados[] = $row;
+$turnos_carregados = [];
+while ($row = sqlsrv_fetch_array($stmt_get, SQLSRV_FETCH_ASSOC)) {
+    // Formata a data (originalmente YYYY-MM-DD do banco, para o JS como YYYY-MM-DD)
+    $data_para_js = ($row['data_original_db'] instanceof DateTimeInterface)
+                    ? $row['data_original_db']->format('Y-m-d')
+                    : $row['data_original_db'];
+
+    // Formata a hora_inicio (originalmente um objeto DateTime do driver sqlsrv para colunas TIME)
+    $hora_inicio_para_js = ($row['hora_inicio_original_db'] instanceof DateTimeInterface)
+                           ? $row['hora_inicio_original_db']->format('H:i') // Formato HH:mm
+                           : null;
+
+    // Formata a hora_fim
+    $hora_fim_para_js = ($row['hora_fim_original_db'] instanceof DateTimeInterface)
+                        ? $row['hora_fim_original_db']->format('H:i') // Formato HH:mm
+                        : null;
+
+    $turnos_carregados[] = [
+        'id' => $row['id'],
+        'data_formatada' => $row['data_formatada'], // Este é o dd/MM da query SQL, usado para display no input de data
+        'data' => $data_para_js,                   // Data no formato YYYY-MM-DD
+        'hora_inicio' => $hora_inicio_para_js,     // Hora no formato HH:mm
+        'hora_fim' => $hora_fim_para_js,         // Hora no formato HH:mm
+        'colaborador' => $row['colaborador']
+    ];
     }
     sqlsrv_free_stmt($stmt_get);
     fecharConexaoSalvarTurnosESair($conexao, ['success' => true, 'message' => 'Turnos carregados.', 'data' => $turnos_carregados, 'csrf_token' => $novoCsrfTokenParaCliente]);
