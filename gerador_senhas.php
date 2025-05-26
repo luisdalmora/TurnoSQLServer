@@ -108,7 +108,7 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
                         <p id="senhaGeradaDisplay" class="text-blue-600 text-4xl md:text-5xl font-bold break-all"></p>
                     </div>
 
-                    <button id="copiarSenha" class="w-full flex items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                    <button id="copiarSenha" class="w-full flex items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out hidden">
                         <i data-lucide="copy" class="w-4 h-4 mr-2"></i> Copiar Senha
                     </button>
                 </section>
