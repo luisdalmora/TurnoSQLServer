@@ -3,6 +3,13 @@ require_once __DIR__ . '/config.php'; // Garante que a sessão está iniciada
 
 // Verificar se o usuário está logado, redirecionar para o login se não estiver
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
+    // Para requisições AJAX, responder com JSON
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Sessão expirada ou acesso negado.', 'action' => 'redirect', 'location' => 'index.html']);
+        exit;
+    }
+    // Para requisições normais, redirecionar
     header('Location: index.html?erro=' . urlencode('Acesso negado. Faça login primeiro.'));
     exit;
 }
@@ -26,86 +33,117 @@ if (isset($_SESSION['flash_message'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastrar Novo Colaborador - Sim Posto</title>
+    <link href="src/output.css" rel="stylesheet"> 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
-<body class="dashboard-body-background">
-    <div class="dashboard-layout-container">
-        <aside class="dashboard-sidebar">
-            <div class="sidebar-header menu-header">
-              <i data-lucide="gauge-circle" class="sidebar-logo-icon"></i>
-              <h2>Sim Posto</h2>
+<body class="bg-gray-100 font-poppins text-gray-700">
+    <div class="flex h-screen overflow-hidden"> 
+        
+        <aside class="w-64 bg-gradient-to-b from-blue-800 to-blue-700 text-indigo-100 flex flex-col flex-shrink-0">
+            <div class="h-16 flex items-center px-4 md:px-6 border-b border-white/10">
+                <i data-lucide="gauge-circle" class="w-7 h-7 md:w-8 md:h-8 mr-2 md:mr-3 text-white"></i>
+                <h2 class="text-lg md:text-xl font-semibold text-white">Sim Posto</h2>
             </div>
-            <nav>
-                <ul>
-                    <li class="sidebar-nav-item menu-item"><a href="home.php"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
-                    <li class="sidebar-nav-item menu-item"><a href="relatorio_turnos.php"><i data-lucide="file-text"></i> Relatórios</a></li>
-                    <li class="sidebar-nav-item menu-item"><a href="gerenciar_colaboradores.php"><i data-lucide="users"></i> Colaboradores</a></li> 
-                </ul>
+            <nav class="flex-grow p-2 space-y-1">
+                <a href="home.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+                </a>
+                <a href="relatorio_turnos.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
+                    <i data-lucide="file-text" class="w-5 h-5 mr-3"></i> Relatórios
+                </a>
+                
+                <a href="gerenciar_colaboradores.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
+                    <i data-lucide="users" class="w-5 h-5 mr-3"></i> Colaboradores
+                </a>
+                <a href="gerador_senhas.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
+                    <i data-lucide="key-round" class="w-5 h-5 mr-3"></i> Gerador de Senhas
+                </a>
+                <a href="gerenciar_scripts.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-blue-500 hover:text-white transition-colors text-sm">
+                    <i data-lucide="file-code-2" class="w-5 h-5 mr-3"></i> Scripts
+                </a>
             </nav>
-            <div class="sidebar-footer">
-                 <div class="logout-container">
-                    <a href="logout.php" id="logout-link" class="sair-btn">
-                        <i data-lucide="log-out"></i> Sair
+            <div class="p-2 border-t border-white/10">
+                 <div class="px-2 py-1 space-y-1.5">
+                    <?php
+                    if (isset($_SESSION['csrf_token_backup'])) {
+                        echo '<input type="hidden" id="csrf-token-backup" value="' . htmlspecialchars($_SESSION['csrf_token_backup']) . '">';
+                        echo '<a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors text-sm">';
+                        echo '<i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup BD';
+                        echo '</a>';
+                    }
+                    ?>
+                </div>
+                <div class="px-2 py-1 mt-1.5">
+                    <a href="logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors text-sm">
+                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Sair
                     </a>
                 </div>
             </div>
         </aside>
 
-        <div class="dashboard-main-content">
-            <header class="dashboard-header">
-                <div class="header-title-container">
-                    <h1><i data-lucide="user-plus"></i> Cadastrar Novo Colaborador</h1>
+        <div class="flex-grow flex flex-col overflow-y-auto">
+            <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+                <div class="flex items-center">
+                  <i data-lucide="user-plus" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>
+                  <h1 class="text-md md:text-lg font-semibold text-gray-800">Cadastrar Novo Colaborador</h1>
                 </div>
-                <div id="user-info" class="user-profile-area">
-                    Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?> <i data-lucide="circle-user-round"></i>
+                <div id="user-info" class="flex items-center text-sm font-medium text-gray-700">
+                  Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?>
+                  <i data-lucide="circle-user-round" class="w-5 h-5 md:w-6 md:h-6 ml-2 text-blue-600"></i>
                 </div>
             </header>
 
-            <main>
-                <section class="dashboard-widget" style="max-width: 700px; margin: 20px auto;">
-                    <div class="login-form-wrapper" style="width: 100%; box-shadow: none; padding:0;"> 
-                        <form method="POST" action="processar_cadastro_colaborador.php" style="border-bottom: none;">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfTokenCadColab); ?>">
+            <main class="flex-grow p-4 md:p-6">
+                <section class="bg-white p-4 md:p-6 rounded-lg shadow max-w-2xl mx-auto"> 
+                    <h2 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+                        <i data-lucide="edit-3" class="w-5 h-5 mr-2 text-blue-600"></i> Informações do Novo Colaborador
+                    </h2>
+                    <form method="POST" action="processar_cadastro_colaborador.php" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfTokenCadColab); ?>">
 
-                            <div class="input-group margin-bottom-35">
-                                <input class="input-field" type="text" name="nome_completo" id="nome_completo_cad" required aria-label="Nome Completo" />
-                                <span class="input-focus-effect" data-placeholder="Nome Completo*"></span>
-                            </div>
+                        <div>
+                            <label for="nome_completo_cad" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo <span class="text-red-500">*</span></label>
+                            <input type="text" name="nome_completo" id="nome_completo_cad" required aria-label="Nome Completo"
+                                   class="form-input block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm placeholder-gray-400"
+                                   placeholder="Digite o nome completo">
+                        </div>
 
-                            <div class="input-group margin-bottom-35">
-                                <input class="input-field" type="email" name="email" id="email_cad" aria-label="E-mail (Opcional)" />
-                                <span class="input-focus-effect" data-placeholder="E-mail (Opcional)"></span>
-                            </div>
+                        <div>
+                            <label for="email_cad" class="block text-sm font-medium text-gray-700 mb-1">E-mail (Opcional)</label>
+                            <input type="email" name="email" id="email_cad" aria-label="E-mail (Opcional)"
+                                   class="form-input block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm placeholder-gray-400"
+                                   placeholder="exemplo@dominio.com">
+                        </div>
 
-                            <div class="input-group margin-bottom-35">
-                                <input class="input-field" type="text" name="cargo" id="cargo_cad" aria-label="Cargo (Opcional)" />
-                                <span class="input-focus-effect" data-placeholder="Cargo (Opcional)"></span>
-                            </div>
+                        <div>
+                            <label for="cargo_cad" class="block text-sm font-medium text-gray-700 mb-1">Cargo (Opcional)</label>
+                            <input type="text" name="cargo" id="cargo_cad" aria-label="Cargo (Opcional)"
+                                   class="form-input block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm placeholder-gray-400"
+                                   placeholder="Ex: Frentista, Caixa">
+                        </div>
 
-                            <div class="form-group" style="margin-bottom: 35px;">
-                                <label for="ativo_cad" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--primary-text-color);">
-                                    <i data-lucide="toggle-right" style="vertical-align: middle; margin-right: 5px;"></i> Status do Colaborador:
-                                </label>
-                                <select name="ativo" id="ativo_cad" class="form-control-filter" style="height: 52px; font-size: 1.05em; font-weight: 500; color: var(--input-field-text-color); background-color: transparent; border: none; border-bottom: 2px solid var(--input-border-color); border-radius:0; padding-left: 5px;">
-                                    <option value="1" selected>Ativo</option>
-                                    <option value="0">Inativo</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label for="ativo_cad" class="block text-sm font-medium text-gray-700 mb-1">Status do Colaborador</label>
+                            <select name="ativo" id="ativo_cad"
+                                    class="form-select block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                <option value="1" selected>Ativo</option>
+                                <option value="0">Inativo</option>
+                            </select>
+                        </div>
 
-                            <div class="login-form-button-container" style="margin-top: 20px;">
-                                <button class="action-button primary" type="submit" style="width:100%;">
-                                    <i data-lucide="check-circle"></i> Cadastrar Colaborador
-                                </button>
-                            </div>
-                        </form>
-                        <ul class="login-utility-links" style="margin-top: 30px; text-align:left;">
-                            <li><a href="gerenciar_colaboradores.php" class="utility-text-secondary"><i data-lucide="arrow-left" style="vertical-align: middle; margin-right: 4px;"></i> Voltar para Gerenciar Colaboradores</a></li>
-                        </ul>
-                    </div>
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-2">
+                            <a href="gerenciar_colaboradores.php" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 order-last sm:order-first">
+                                <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Voltar
+                            </a>
+                            <button type="submit"
+                                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Cadastrar Colaborador
+                            </button>
+                        </div>
+                    </form>
                 </section>
             </main>
         </div>
@@ -116,21 +154,18 @@ if (isset($_SESSION['flash_message'])) {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-            // Script para efeito flutuante do placeholder, adaptado para esta página
-            document.querySelectorAll('.input-field:not(select)').forEach(input => { // Exclui select do efeito
-                const checkValue = () => {
-                    input.classList.toggle("has-val", input.value.trim() !== "");
-                };
-                input.addEventListener("blur", checkValue);
-                input.addEventListener("input", checkValue);
-                checkValue();
-            });
+            // A lógica de placeholder flutuante do style.css foi removida
+            // e os inputs agora usam o estilo padrão do Tailwind Forms.
+            // Se quiser manter o efeito de placeholder flutuante, precisaria
+            // de JS adicional e classes Tailwind customizadas para replicar.
 
             <?php if ($flashMessage && is_array($flashMessage) && isset($flashMessage['message']) && isset($flashMessage['type'])): ?>
-            if (typeof showToast === 'function') {
-                showToast('<?php echo addslashes($flashMessage['message']); ?>', '<?php echo addslashes($flashMessage['type']); ?>');
+            // Usa a função global showToast definida em utils.js (importada por main.js)
+            if (typeof window.showGlobalToast === 'function') {
+                window.showGlobalToast('<?php echo addslashes(htmlspecialchars($flashMessage['message'])); ?>', '<?php echo addslashes(htmlspecialchars($flashMessage['type'])); ?>');
             } else {
-                alert('<?php echo ucfirst(addslashes($flashMessage['type'])); ?>: <?php echo addslashes($flashMessage['message']); ?>');
+                // Fallback se showGlobalToast não estiver disponível (improvável se main.js carrega)
+                alert('<?php echo ucfirst(addslashes(htmlspecialchars($flashMessage['type']))); ?>: <?php echo addslashes(htmlspecialchars($flashMessage['message'])); ?>');
             }
             <?php endif; ?>
         });
