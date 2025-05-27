@@ -1,5 +1,5 @@
 <?php
-// LogHelper.php (Adaptado para SQL Server)
+// lib/LogHelper.php (Adaptado para SQL Server)
 
 class LogHelper {
     private $conexao; // Agora será um recurso de conexão SQLSRV
@@ -28,17 +28,13 @@ class LogHelper {
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
         $context_json = !empty($context) ? json_encode($context) : null;
 
-        // SQL Server não usa backticks. Colchetes são opcionais para nomes simples.
         $sql = "INSERT INTO system_logs (log_level, message, context, ip_address, user_id) VALUES (?, ?, ?, ?, ?)";
         
-        // Parâmetros para sqlsrv. NULL é tratado diretamente.
         $params = [$level, $message, $context_json, $ip_address, $userId];
 
-        // sqlsrv_prepare e sqlsrv_execute ou diretamente sqlsrv_query para INSERTs
         $stmt = sqlsrv_query($this->conexao, $sql, $params);
 
         if ($stmt === false) {
-            // Se o log falhar, registra no log de erros do PHP como fallback
             $sqlsrv_errors = sqlsrv_errors();
             $timestamp = date('Y-m-d H:i:s');
             $error_message_sqlsrv = "";
@@ -49,7 +45,6 @@ class LogHelper {
             }
             error_log("{$timestamp} LogHelper: Falha ao executar statement de log no BD (SQLSRV). Nível: {$level}, Mensagem Original: {$message}, Erro SQLSRV: " . $error_message_sqlsrv . ", Contexto: " . json_encode($context));
         } else {
-            // Libera o statement se a execução foi bem-sucedida
             sqlsrv_free_stmt($stmt);
         }
     }

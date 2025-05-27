@@ -1,6 +1,8 @@
 <?php
-// EmailHelper.php
-require_once __DIR__ . '/config.php';
+// lib/EmailHelper.php
+
+// Caminho atualizado para config.php
+require_once __DIR__ . '/../config/config.php';
 
 class EmailHelper {
 
@@ -15,14 +17,12 @@ class EmailHelper {
     public static function sendEmail($to, $subject, $message) {
         $headers = "MIME-Version: 1.0" . "\r\n";
         $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        // Constantes EMAIL_FROM_NAME e EMAIL_FROM_ADDRESS vêm de config.php
         $headers .= 'From: ' . EMAIL_FROM_NAME . ' <' . EMAIL_FROM_ADDRESS . '>' . "\r\n";
 
-        // Aviso: A função mail() do PHP tem limitações e depende da configuração do servidor.
-        // Para produção, considere bibliotecas como PHPMailer para mais confiabilidade e recursos.
         if (mail($to, $subject, $message, $headers)) {
             return true;
         } else {
-            // Logar o erro de envio de e-mail (usando o LogHelper seria ideal aqui, mas para evitar dependência circular ou complexidade inicial)
             error_log("EmailHelper: Falha ao enviar e-mail para {$to} com assunto: {$subject}");
             return false;
         }
@@ -30,6 +30,7 @@ class EmailHelper {
 
     public static function sendPasswordResetEmail($to, $reset_token) {
         $subject = "Redefinição de Senha - Sim Posto";
+        // SITE_URL vem de config.php
         $reset_link = SITE_URL . "/resetar_senha.php?token=" . urlencode($reset_token) . "&email=" . urlencode($to);
         $message_body = "
             Olá,<br><br>
@@ -45,7 +46,7 @@ class EmailHelper {
 
     public static function sendRegistrationConfirmationEmail($to, $nome_usuario) {
         $subject = "Bem-vindo ao Sim Posto!";
-        $login_link = SITE_URL . "/index.html";
+        $login_link = SITE_URL . "/index.html"; // SITE_URL vem de config.php
         $message_body = "
             Olá {$nome_usuario},<br><br>
             Seu cadastro no sistema Sim Posto foi realizado com sucesso!<br>
@@ -57,4 +58,3 @@ class EmailHelper {
         return self::sendEmail($to, $subject, $message_body);
     }
 }
-?>

@@ -1,17 +1,16 @@
 <?php
-// gerar_relatorio_turnos.php (Adaptado para SQL Server)
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // Agora $conexao é um recurso SQLSRV
-require_once __DIR__ . '/LogHelper.php'; // Assegure que LogHelper.php está adaptado para SQLSRV
+// api/gerar_relatorio_turnos.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; 
+require_once __DIR__ . '/../lib/LogHelper.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-$logger = new LogHelper($conexao); // $conexao é SQLSRV
+$logger = new LogHelper($conexao); 
 header('Content-Type: application/json');
 
-// Função auxiliar para fechar conexão e sair
 function fecharConexaoRelatorioESair($conexaoSqlsrv, $jsonData) {
     if (isset($conexaoSqlsrv)) {
         sqlsrv_close($conexaoSqlsrv);
@@ -20,15 +19,14 @@ function fecharConexaoRelatorioESair($conexaoSqlsrv, $jsonData) {
     exit;
 }
 
-// --- Verificação de Sessão e CSRF Token ---
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
-    fecharConexaoRelatorioESair($conexao, ['success' => false, 'message' => 'Acesso negado. Sessão inválida.']);
+    fecharConexaoRelatorioESair(isset($conexao) ? $conexao : null, ['success' => false, 'message' => 'Acesso negado. Sessão inválida.']);
 }
 $userId = $_SESSION['usuario_id'];
 
 if (!isset($_GET['csrf_token']) || !isset($_SESSION['csrf_token_reports']) || !hash_equals($_SESSION['csrf_token_reports'], $_GET['csrf_token'])) {
     $logger->log('SECURITY_WARNING', 'Falha CSRF token em gerar_relatorio_turnos (GET).', ['user_id' => $userId]);
-    // Mantendo comportamento original de não sair, apenas logar.
+    // Não saímos aqui, mas atualizamos o token
 }
 $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
 $novoCsrfTokenParaCliente = $_SESSION['csrf_token_reports'];
@@ -42,7 +40,6 @@ if (empty($data_inicio_str) || empty($data_fim_str)) {
 }
 
 try {
-    // Para SQL Server, o formato YYYY-MM-DD é seguro.
     $data_inicio_obj = new DateTime($data_inicio_str);
     $data_fim_obj = new DateTime($data_fim_str);
     if ($data_inicio_obj > $data_fim_obj) {
@@ -53,8 +50,6 @@ try {
     fecharConexaoRelatorioESair($conexao, ['success' => false, 'message' => 'Formato de data inválido (esperado YYYY-MM-DD).', 'csrf_token' => $novoCsrfTokenParaCliente]);
 }
 
-// SQL Adaptado para SQL Server
-// Usando FORMAT (SQL Server 2012+)
 $sql = "SELECT 
             t.data, 
             FORMAT(t.data, 'dd/MM/yyyy', 'pt-BR') AS data_formatada, 
@@ -77,7 +72,6 @@ if (!empty($colaborador_filtro)) {
 }
 $sql .= " ORDER BY t.data ASC, t.colaborador ASC, t.hora_inicio ASC";
 
-// Em SQLSRV, os parâmetros são passados diretamente para sqlsrv_query ou sqlsrv_execute.
 $stmt = sqlsrv_query($conexao, $sql, $params_query_values);
 
 if ($stmt === false) {
@@ -99,22 +93,16 @@ foreach ($turnos_db as $turno_db_row) {
     $duracao_decimal = 0;
     $duracao_formatada_str = "00h00min";
 
-    // $turno_db_row['data'] será um objeto DateTime do SQLSRV se o tipo da coluna for DATE/DATETIME
-    // $turno_db_row['hora_inicio'], $turno_db_row['hora_fim'] serão objetos DateTime se o tipo for TIME/DATETIME
     if (!empty($turno_db_row['data']) && !empty($turno_db_row['hora_inicio']) && !empty($turno_db_row['hora_fim'])) {
         try {
-            // SQLSRV pode retornar objetos DateTime. Se for string, DateTime construtor funciona.
-            // Se data for DateTime object, formatamos para string para consistência
             $data_original_turno_str = ($turno_db_row['data'] instanceof DateTimeInterface) ? $turno_db_row['data']->format('Y-m-d') : $turno_db_row['data'];
-            
-            // hora_inicio e hora_fim podem ser DateTime objects se vierem de um tipo TIME do SQL Server
             $hora_inicio_str_for_calc = ($turno_db_row['hora_inicio'] instanceof DateTimeInterface) ? $turno_db_row['hora_inicio']->format('H:i:s') : $turno_db_row['hora_inicio'];
             $hora_fim_str_for_calc = ($turno_db_row['hora_fim'] instanceof DateTimeInterface) ? $turno_db_row['hora_fim']->format('H:i:s') : $turno_db_row['hora_fim'];
 
             $inicio = new DateTime($data_original_turno_str . ' ' . $hora_inicio_str_for_calc);
             $fim = new DateTime($data_original_turno_str . ' ' . $hora_fim_str_for_calc);
 
-            if ($fim <= $inicio) { // Turno que passa da meia-noite
+            if ($fim <= $inicio) { 
                 $fim->add(new DateInterval('P1D'));
             }
             $intervalo = $inicio->diff($fim);

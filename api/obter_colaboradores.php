@@ -1,33 +1,30 @@
 <?php
-// obter_colaboradores.php (Adaptado para SQL Server)
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // Agora $conexao é um recurso SQLSRV
-// require_once __DIR__ . '/LogHelper.php'; // Descomente se for usar logs, e adapte LogHelper
+// api/obter_colaboradores.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; 
+// require_once __DIR__ . '/../lib/LogHelper.php'; // Descomente se for usar logs aqui
 
 header('Content-Type: application/json');
 
-if (session_status() == PHP_SESSION_NONE && (false)) { 
-    session_start();
-}
+// Se este endpoint não precisa de autenticação para ser usado pelo JS em qualquer página,
+// a verificação de sessão pode ser omitida. Se precisar, adicione-a.
+// if (session_status() == PHP_SESSION_NONE) { 
+//     session_start();
+// }
+// if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) { /* ... tratar ... */ }
 
-// $logger = new LogHelper($conexao); // Descomente se for usar logs. $conexao já é SQLSRV.
+
+// $logger = new LogHelper($conexao); // Descomente se for usar logs.
 
 function fecharConexaoObterColabESair($conexaoSqlsrv, $jsonData) {
-    if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) {
+    if (isset($conexaoSqlsrv) && $conexaoSqlsrv) {
         sqlsrv_close($conexaoSqlsrv);
     }
     echo json_encode($jsonData);
     exit;
 }
 
-// Descomente a verificação de sessão se esta informação for sensível
-// if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
-//     fecharConexaoObterColabESair($conexao, ['success' => false, 'message' => 'Acesso não autorizado.']);
-// }
-// $userId = isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : null;
-
 $colaboradores = [];
-// SQL Server não usa backticks.
 $sql = "SELECT id, nome_completo FROM colaboradores WHERE ativo = 1 ORDER BY nome_completo ASC";
 
 $stmt = sqlsrv_query($conexao, $sql);
@@ -47,6 +44,6 @@ if ($stmt) {
     fecharConexaoObterColabESair($conexao, ['success' => false, 'message' => 'Erro ao buscar lista de colaboradores.']);
 }
 
-if (isset($conexao) && is_resource($conexao)) { // Fallback
+if (isset($conexao) && $conexao) { // Fallback
     sqlsrv_close($conexao);
 }

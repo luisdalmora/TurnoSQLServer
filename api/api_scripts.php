@@ -1,8 +1,8 @@
 <?php
-// api_scripts.php
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php';
-require_once __DIR__ . '/LogHelper.php';
+// api/api_scripts.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php';
+require_once __DIR__ . '/../lib/LogHelper.php';
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -11,7 +11,6 @@ if (session_status() == PHP_SESSION_NONE) {
 $logger = new LogHelper($conexao);
 header('Content-Type: application/json');
 
-// --- Funções Utilitárias ---
 function fecharConexaoApiESair($conexaoSqlsrv, $jsonData) {
     if (isset($conexaoSqlsrv) && $conexaoSqlsrv) {
         sqlsrv_close($conexaoSqlsrv);
@@ -20,7 +19,6 @@ function fecharConexaoApiESair($conexaoSqlsrv, $jsonData) {
     exit;
 }
 
-// --- Verificação de Sessão e CSRF Token ---
 $csrfTokenSessionKey = 'csrf_token_scripts_manage';
 $novoCsrfTokenParaCliente = null;
 
@@ -41,23 +39,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
         fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Acesso negado.']);
     }
-    // Para GET, o token CSRF é normalmente verificado se for uma ação sensível,
-    // mas para listagem simples, pode ser opcional ou vir via query param e ser checado.
-    // Aqui, como a listagem é feita via JS, não passaremos CSRF token na URL para GET,
-    // mas o backend irá gerar um novo para o formulário de POST.
 } else {
-    http_response_code(405); // Method Not Allowed
+    http_response_code(405); 
     fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Método não suportado.']);
 }
 
-// Sempre gerar um novo token para a próxima requisição POST do formulário
-$_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
-$novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+if(isset($_SESSION[$csrfTokenSessionKey])) {
+    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+    $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+} else { // Fallback se a chave de sessão não existir por algum motivo
+    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+    $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+    $logger->log('WARNING', 'Chave CSRF para api_scripts não existia na sessão e foi recriada.', ['user_id' => $_SESSION['usuario_id'] ?? null]);
+}
 $userId = $_SESSION['usuario_id'];
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $acao = $input['action'] ?? ($input['script_id'] ? 'atualizar' : 'salvar'); // Determina ação por 'action' ou presença de 'script_id'
+    $acao = $input['action'] ?? ($input['script_id'] ? 'atualizar' : 'salvar');
 
     if ($acao === 'salvar' || $acao === 'atualizar') {
         $titulo = trim($input['titulo'] ?? '');
@@ -81,14 +80,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt) {
             $rows_affected = sqlsrv_rows_affected($stmt);
             sqlsrv_free_stmt($stmt);
-            if ($rows_affected > 0 || ($acao === 'atualizar' && $rows_affected === 0)) { // 0 rows pode ser OK se nada mudou
+            if ($rows_affected > 0 || ($acao === 'atualizar' && $rows_affected === 0)) { 
                  $logger->log('INFO', "Script " . ($script_id ? "atualizado (ID: $script_id)" : "salvo") . " com sucesso.", ['user_id' => $userId, 'titulo' => $titulo]);
                 fecharConexaoApiESair($conexao, ['success' => true, 'message' => 'Script salvo com sucesso!', 'csrf_token' => $novoCsrfTokenParaCliente]);
-            } else if ($rows_affected === false ) { // Erro
+            } else if ($rows_affected === false ) { 
                 $errors = sqlsrv_errors();
                 $logger->log('ERROR', 'Erro ao salvar/atualizar script (rows_affected false).', ['user_id' => $userId, 'titulo' => $titulo, 'sqlsrv_errors' => $errors]);
                 fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Erro ao salvar script no banco de dados.', 'csrf_token' => $novoCsrfTokenParaCliente]);
-            } else { // rows_affected foi 0 e era um insert, ou um update que não encontrou o registro
+            } else { 
                 $logger->log('WARNING', "Script " . ($script_id ? " (ID: $script_id) não encontrado para atualizar ou " : "") . "não pode ser salvo (0 linhas afetadas).", ['user_id' => $userId, 'titulo' => $titulo]);
                 fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Não foi possível salvar o script ou nenhuma alteração foi feita.', 'csrf_token' => $novoCsrfTokenParaCliente]);
             }
@@ -157,5 +156,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     fecharConexaoApiESair($conexao, ['success' => true, 'scripts' => $scripts, 'csrf_token' => $novoCsrfTokenParaCliente]);
 }
 
-// Fallback
 fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Requisição inválida.', 'csrf_token' => $novoCsrfTokenParaCliente]);

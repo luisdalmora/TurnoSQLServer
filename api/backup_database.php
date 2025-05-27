@@ -1,16 +1,16 @@
 <?php
-// backup_database.php (Adaptado para SQL Server)
-require_once __DIR__ . '/config.php';
-// $conexao_sqlsrv é definido em conexao.php usando $db_servername_sqlsrv, etc.
-require_once __DIR__ . '/conexao.php'; 
-require_once __DIR__ . '/LogHelper.php';
+// api/backup_database.php
 
-$logger = new LogHelper($conexao); // $conexao é um recurso SQLSRV
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; 
+require_once __DIR__ . '/../lib/LogHelper.php';
+
+$logger = new LogHelper($conexao); 
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(["success" => false, "message" => "Método não permitido."]);
-    if ($conexao) sqlsrv_close($conexao);
+    if (isset($conexao)) sqlsrv_close($conexao);
     exit;
 }
 
@@ -23,83 +23,76 @@ if (!isset($input['csrf_token_backup']) || !isset($_SESSION['csrf_token_backup']
     $userIdForLog = $_SESSION['usuario_id'] ?? 'N/A_CSRF_FAIL';
     $logger->log('SECURITY_WARNING', 'Falha CSRF token em backup_database.php.', ['user_id' => $userIdForLog]);
     echo json_encode(['success' => false, 'message' => 'Erro de segurança (token inválido).']);
-    if ($conexao) sqlsrv_close($conexao);
+    if (isset($conexao)) sqlsrv_close($conexao);
     exit;
 }
+// Gerar novo token CSRF para backup após uso
+$_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
+// Não é necessário enviar o novo token de volta aqui, pois o modal de backup fecha.
+// A próxima vez que a página home for carregada, o novo token estará no input hidden.
+
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     $logger->log('SECURITY_WARNING', 'Tentativa de acesso não autenticado ao backup_database.php.');
     echo json_encode(["success" => false, "message" => "Acesso não autorizado."]);
-    if ($conexao) sqlsrv_close($conexao);
+    if (isset($conexao)) sqlsrv_close($conexao);
     exit;
 }
 $userIdLogado = $_SESSION['usuario_id'];
 
-// Variáveis de conexao.php (SQL Server)
-// $db_servername_sqlsrv, $db_username_sqlsrv, $db_password_sqlsrv, $db_database_sqlsrv
-if (!isset($db_database_sqlsrv, $db_servername_sqlsrv)) { // Username/password podem ser omitidos para Autenticação Windows
-    $logger->log('ERROR', 'Variáveis de conexão SQL Server não definidas. Verifique conexao.php.', ['user_id' => $userIdLogado]);
+// Variáveis de conexao.php já foram carregadas.
+// Elas são $db_servername_sqlsrv, $db_username_sqlsrv, $db_password_sqlsrv, $db_database_sqlsrv
+if (!isset($db_database_sqlsrv, $db_servername_sqlsrv)) { 
+    $logger->log('ERROR', 'Variáveis de conexão SQL Server não definidas. Verifique config/conexao.php.', ['user_id' => $userIdLogado]);
     echo json_encode(["success" => false, "message" => "Erro interno: Configuração de conexão incompleta."]);
-    if ($conexao) sqlsrv_close($conexao);
+    if (isset($conexao)) sqlsrv_close($conexao);
     exit;
 }
 
 $backupFileBase = $db_database_sqlsrv . '_backup_' . date("Ymd_His");
-$backupFile = $backupFileBase . '.bak'; // Backup SQL Server geralmente é .bak
-$backupFolder = __DIR__ . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR;
+$backupFile = $backupFileBase . '.bak'; 
+$backupFolder = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR; // Volta um nível de 'api' para a raiz do projeto
 
 if (!is_dir($backupFolder)) {
     if (!mkdir($backupFolder, 0775, true)) {
         $logger->log('ERROR', 'Falha ao criar pasta de backups.', ['path' => $backupFolder, 'user_id' => $userIdLogado]);
         echo json_encode(["success" => false, "message" => "Erro interno: Não foi possível criar a pasta de backups."]);
-        if ($conexao) sqlsrv_close($conexao);
+        if (isset($conexao)) sqlsrv_close($conexao);
         exit;
     }
 }
 if (!is_writable($backupFolder)) {
     $logger->log('ERROR', 'Pasta de backups sem permissão de escrita para o PHP.', ['path' => $backupFolder, 'user_id' => $userIdLogado]);
     echo json_encode(["success" => false, "message" => "Erro interno: A pasta de backups não tem permissão de escrita."]);
-    if ($conexao) sqlsrv_close($conexao);
+    if (isset($conexao)) sqlsrv_close($conexao);
     exit;
 }
 
 $fullPathToBackup = $backupFolder . $backupFile;
 
-// Construir o comando sqlcmd para backup
-// ATENÇÃO: Segurança é crucial.
-// - Autenticação do Windows (-E) é preferível se o PHP rodar com uma conta de usuário apropriada.
-// - Passar senha na linha de comando (-P) é um risco.
-// - O usuário do SQL Server precisa de permissão para BACKUP DATABASE.
-// - O SQL Server precisa ter permissão para escrever no $fullPathToBackup (caminho visto pelo SQL Server, não necessariamente pelo PHP).
-//   Se o SQL Server estiver em outra máquina, o $fullPathToBackup deve ser um caminho acessível por ele (ex: UNC path).
-
-$sqlcmdPath = 'sqlcmd'; // Tenta usar o sqlcmd do PATH. Especifique o caminho completo se necessário.
-                        // Ex: 'C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\170\\Tools\\Binn\\sqlcmd.exe'
+$sqlcmdPath = 'sqlcmd'; 
 
 $backupCommandTsql = sprintf(
     "BACKUP DATABASE [%s] TO DISK = N'%s' WITH FORMAT, MEDIANAME = N'PHP_Backup_Media', NAME = N'Full Backup of %s';",
     $db_database_sqlsrv,
-    $fullPathToBackup, // SQL Server deve ter permissão para escrever neste local.
+    $fullPathToBackup, 
     $db_database_sqlsrv
 );
 
-// Construção do comando sqlcmd
 if (!empty($db_username_sqlsrv) && !empty($db_password_sqlsrv)) {
-    // Usando login SQL - RISCO DE SEGURANÇA COM SENHA NA LINHA DE COMANDO
     $command = sprintf(
-        '%s -S %s -U %s -P %s -Q "%s" -b -r1', // -b para sair em erro, -r1 para mensagens de erro no stdout
+        '%s -S %s -U %s -P %s -Q "%s" -b -r1', 
         escapeshellcmd($sqlcmdPath),
         escapeshellarg($db_servername_sqlsrv),
         escapeshellarg($db_username_sqlsrv),
-        escapeshellarg($db_password_sqlsrv), // RISCO!
-        $backupCommandTsql // Não use escapeshellarg aqui pois é parte do -Q
+        escapeshellarg($db_password_sqlsrv), 
+        $backupCommandTsql 
     );
     $command_preview = sprintf(
         '%s -S %s -U %s -P *** -Q "%s" -b -r1',
         $sqlcmdPath, $db_servername_sqlsrv, $db_username_sqlsrv, $backupCommandTsql
     );
 } else {
-    // Usando Autenticação do Windows (preferível se configurável)
     $command = sprintf(
         '%s -S %s -E -Q "%s" -b -r1',
         escapeshellcmd($sqlcmdPath),
@@ -112,21 +105,16 @@ if (!empty($db_username_sqlsrv) && !empty($db_password_sqlsrv)) {
     );
 }
 
-
 $logger->log('INFO', 'Tentando executar comando sqlcmd para backup SQL Server.', [
     'user_id' => $userIdLogado,
     'command_preview' => $command_preview
 ]);
 
-// shell_exec pode não retornar stderr adequadamente sem redirecionamento.
-// A opção -r1 no sqlcmd envia mensagens de erro para stdout.
-$output = shell_exec($command . " 2>&1"); // Redireciona stderr para stdout
+$output = shell_exec($command . " 2>&1"); 
 $criticalErrorOccurred = false;
 $userVisibleError = "Falha ao executar o backup do SQL Server.";
 
 if ($output !== null && $output !== '') {
-    // sqlcmd pode retornar mensagens mesmo em sucesso. Procurar por erros explícitos.
-    // Ex: "Msg...", "Error:", "failed"
     if (preg_match('/Msg|Error|failed|Cannot open backup device|Access is denied/i', $output) && 
         !preg_match('/Processed \d+ pages for database|BACKUP DATABASE successfully processed/i', $output) ) {
         $criticalErrorOccurred = true;
@@ -137,14 +125,17 @@ if ($output !== null && $output !== '') {
     }
 }
 
-
 if (!$criticalErrorOccurred) {
     if (file_exists($fullPathToBackup) && filesize($fullPathToBackup) > 0) {
         $logger->log('INFO', 'Backup SQL Server (.bak) realizado com sucesso e arquivo verificado.', ['user_id' => $userIdLogado, 'file' => $fullPathToBackup, 'size' => filesize($fullPathToBackup)]);
 
-        $downloadScriptName = 'download_backup_file.php'; // Este script precisaria ser seguro
-        $siteUrl = defined('SITE_URL') ? rtrim(SITE_URL, '/') : '';
+        $downloadScriptName = 'download_backup_file.php'; 
+        // BASE_URL é definida em config.php (que foi incluído)
+        $siteUrl = defined('SITE_URL') ? rtrim(SITE_URL, '/') : ''; 
+        // Se SITE_URL aponta para /TurnoSQLServer, então o download_backup_file.php estaria em /TurnoSQLServer/download_backup_file.php
+        // Se a pasta api está dentro de TurnoSQLServer, o script de download deve estar na raiz do projeto web.
         $downloadUrl = $siteUrl . '/' . $downloadScriptName . '?file=' . urlencode(basename($fullPathToBackup));
+
 
         echo json_encode([
             "success" => true,
@@ -174,7 +165,7 @@ if ($criticalErrorOccurred) {
     echo json_encode(["success" => false, "message" => $userVisibleError]);
 }
 
-if ($conexao) {
+if (isset($conexao)) {
     sqlsrv_close($conexao);
 }
 exit;

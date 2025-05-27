@@ -1,15 +1,21 @@
 <?php
-// login.php (Adaptado para SQL Server)
+// login.php 
 
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // Agora $conexao é um recurso SQLSRV
-require_once __DIR__ . '/LogHelper.php'; // Assegure que LogHelper está adaptado para SQLSRV
+// Caminhos atualizados
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/conexao.php'; 
+require_once __DIR__ . '/lib/LogHelper.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
-    session_start();
+    session_start(); // Deve ser chamado antes de qualquer output ou uso de $_SESSION
 }
 
-$logger = new LogHelper($conexao); // $conexao agora é SQLSRV
+$logger = new LogHelper($conexao); 
+
+// SITE_URL já definido em config.php
+$home_page_url = SITE_URL . '/home.php';
+$login_page_url = SITE_URL . '/index.html';
+
 
 function fecharConexaoLoginSQLSRVRedirect($conexaoSqlsrv, $url) {
     if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) {
@@ -20,7 +26,7 @@ function fecharConexaoLoginSQLSRVRedirect($conexaoSqlsrv, $url) {
 }
 
 if (isset($_SESSION['logado']) && $_SESSION['logado'] === true) {
-    fecharConexaoLoginSQLSRVRedirect($conexao, 'home.php');
+    fecharConexaoLoginSQLSRVRedirect(isset($conexao) ? $conexao : null, $home_page_url);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -28,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$conexao || !is_resource($conexao) || get_resource_type($conexao) !== 'SQL Server Connection') {
         $logger->log('CRITICAL', 'Conexão com BD indisponível ou inválida em login.php (SQLSRV).', ['connection_status' => ($conexao ? 'Tipo inválido ou não é SQLSRV' : 'Não conectado')]);
-        fecharConexaoLoginSQLSRVRedirect(null, 'index.html?erro=' . urlencode("Falha crítica na conexão. Contate o suporte."));
+        fecharConexaoLoginSQLSRVRedirect(null, $login_page_url . '?erro=' . urlencode("Falha crítica na conexão. Contate o suporte."));
     }
 
     $usuario_digitado = isset($_POST['usuario']) ? trim($_POST['usuario']) : null;
@@ -39,17 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erro_login)) {
-        // SQL adaptado para SQL Server: TOP 1 e sem crases
         $sql = "SELECT TOP 1 id, usuario, senha, nome_completo, email FROM usuarios WHERE (usuario = ? OR email = ?) AND ativo = 1";
         
         $params = [$usuario_digitado, $usuario_digitado];
-        $stmt = sqlsrv_query($conexao, $sql, $params); // sqlsrv_query para SELECT
+        $stmt = sqlsrv_query($conexao, $sql, $params); 
 
         if ($stmt) {
             $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
             sqlsrv_free_stmt($stmt);
 
-            if ($row) { // Usuário encontrado
+            if ($row) { 
                 $db_id = $row['id'];
                 $db_usuario = $row['usuario'];
                 $db_senha_hash = $row['senha'];
@@ -63,15 +68,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['usuario_nome_completo'] = $db_nome_completo;
                     $_SESSION['usuario_email'] = $db_email;
                     $_SESSION['logado'] = true;
-                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); 
+                    
+                    // Gerar todos os tokens CSRF necessários para a sessão
+                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); // Token geral para turnos
+                    $_SESSION['csrf_token_backup'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_ausencias'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_obs_geral'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_colab_manage'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_cad_colab'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_scripts_manage'] = bin2hex(random_bytes(32));
+                    $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
+
 
                     $logger->log('AUTH_SUCCESS', 'Login bem-sucedido (SQLSRV).', ['usuario_id' => $db_id, 'usuario' => $db_usuario]);
-                    fecharConexaoLoginSQLSRVRedirect($conexao, 'home.php');
+                    fecharConexaoLoginSQLSRVRedirect($conexao, $home_page_url);
                 } else {
                     $erro_login = "Usuário ou senha incorretos.";
                     $logger->log('AUTH_FAILURE', $erro_login, ['usuario_digitado' => $usuario_digitado, 'motivo' => 'Senha não confere (SQLSRV)']);
                 }
-            } else { // Nenhum usuário encontrado
+            } else { 
                 $erro_login = "Usuário ou senha incorretos, ou usuário inativo.";
                 $logger->log('AUTH_FAILURE', $erro_login, ['usuario_digitado' => $usuario_digitado, 'motivo' => 'Usuário não encontrado ou inativo (SQLSRV)']);
             }
@@ -85,9 +100,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!empty($erro_login)) {
-        fecharConexaoLoginSQLSRVRedirect($conexao, 'index.html?erro=' . urlencode($erro_login));
+        fecharConexaoLoginSQLSRVRedirect(isset($conexao) ? $conexao : null, $login_page_url . '?erro=' . urlencode($erro_login));
     }
 
 } else {
-    fecharConexaoLoginSQLSRVRedirect($conexao, 'index.html');
+    fecharConexaoLoginSQLSRVRedirect(isset($conexao) ? $conexao : null, $login_page_url);
 }

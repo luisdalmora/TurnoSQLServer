@@ -1,10 +1,9 @@
 <?php
 // salvar_turnos.php (Adaptado para SQL Server)
 
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // $conexao é recurso SQLSRV
-require_once __DIR__ . '/LogHelper.php'; // Assegure que LogHelper está adaptado para SQLSRV
-// require_once __DIR__ . '/GoogleCalendarHelper.php'; // GoogleCalendarHelper simplificado (se usado)
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; // $conexao é recurso SQLSRV
+require_once __DIR__ . '/../lib/LogHelper.php';
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();

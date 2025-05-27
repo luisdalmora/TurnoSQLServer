@@ -1,8 +1,8 @@
 <?php
-// carregar_ausencia_setor.php (Adaptado para SQL Server)
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // SQLSRV
-require_once __DIR__ . '/LogHelper.php'; // SQLSRV
+// api/carregar_ausencia_setor.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; 
+require_once __DIR__ . '/../lib/LogHelper.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -12,7 +12,7 @@ header('Content-Type: application/json');
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     echo json_encode(['success' => false, 'message' => 'Acesso negado.']);
-    if (isset($conexao) && $conexao) { sqlsrv_close($conexao); }
+    if (isset($conexao)) { sqlsrv_close($conexao); }
     exit;
 }
 
@@ -24,13 +24,8 @@ $ausencias_setor_db = [];
 
 if ($conexao) {
     $primeiroDiaMesFiltro = sprintf('%04d-%02d-01', $ano, $mes);
-    // Para SQL Server, é importante que o formato da data seja YYYY-MM-DD para evitar ambiguidades
     $ultimoDiaMesFiltro = date('Y-m-t', strtotime($primeiroDiaMesFiltro));
 
-
-    // Query para SQL Server:
-    // - FORMAT(a.data_inicio, 'dd/MM', 'pt-BR') para formatar data (requer SQL Server 2012+)
-    // - Sem backticks
     $sql = "SELECT FORMAT(a.data_inicio, 'dd/MM', 'pt-BR') as data, 
                    a.colaborador_nome as colaborador 
             FROM ausencias a
@@ -49,7 +44,7 @@ if ($conexao) {
         $primeiroDiaMesFiltro, $ultimoDiaMesFiltro
     );
     
-    $stmt = sqlsrv_query($conexao, $sql, $params); // sqlsrv_query para SELECT com parâmetros
+    $stmt = sqlsrv_query($conexao, $sql, $params);
 
     if ($stmt) {
         while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
@@ -70,6 +65,6 @@ if ($conexao) {
 
 echo json_encode(['success' => true, 'ausencias' => $ausencias_setor_db]);
 
-if (isset($conexao) && $conexao) {
+if (isset($conexao)) {
     sqlsrv_close($conexao);
 }

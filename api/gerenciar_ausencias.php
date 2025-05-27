@@ -1,8 +1,8 @@
 <?php
-// gerenciar_ausencias.php (Adaptado para SQL Server)
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/conexao.php'; // $conexao é recurso SQLSRV
-require_once __DIR__ . '/LogHelper.php'; // Assegure que LogHelper.php está adaptado para SQLSRV
+// api/gerenciar_ausencias.php
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/conexao.php'; 
+require_once __DIR__ . '/../lib/LogHelper.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -14,7 +14,6 @@ header('Content-Type: application/json');
 function formatarDataParaBanco($dataStr) {
     if (empty($dataStr)) return null;
     try {
-        // SQL Server prefere 'Y-m-d'
         $dt = new DateTime($dataStr);
         return $dt->format('Y-m-d');
     } catch (Exception $e) {
@@ -51,8 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logger->log('SECURITY_WARNING', 'Falha na validação do CSRF token (POST ausências).', ['user_id' => $userIdForLog, 'acao' => $input['acao'] ?? 'desconhecida']);
         fecharConexaoAusenciasESair($conexao, ['success' => false, 'message' => 'Erro de segurança. Por favor, recarregue a página e tente novamente.']);
     }
-    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
-    $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+    if (isset($_SESSION[$csrfTokenSessionKey])) {
+        $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+        $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+    }
 
 } else if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
@@ -85,10 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $primeiroDiaMesFiltro = sprintf('%04d-%02d-01', $anoFiltro, $mesFiltro);
     $ultimoDiaMesFiltro = date('Y-m-t', strtotime($primeiroDiaMesFiltro));
 
-    // SQL Server: datas formatadas como YYYY-MM-DD
-    // Colunas 'data_inicio' e 'data_fim' no SQL Server devem ser DATE ou DATETIME
-    // Para retornar apenas a data no formato YYYY-MM-DD para o cliente, se forem DATETIME:
-    // FORMAT(data_inicio, 'yyyy-MM-dd') AS data_inicio_formatada
     $sql = "SELECT id, data_inicio, data_fim, colaborador_nome, observacoes 
             FROM ausencias
             WHERE criado_por_usuario_id = ? 
@@ -116,7 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $itens_carregados = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        // SQLSRV pode retornar datas como objetos DateTime. Formatá-los para string se necessário para o cliente.
         if ($row['data_inicio'] instanceof DateTimeInterface) {
             $row['data_inicio'] = $row['data_inicio']->format('Y-m-d');
         }
@@ -176,10 +172,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logger->log('WARNING', 'Nenhum dado de ausência recebido para salvar.', ['user_id' => $userId]);
             fecharConexaoAusenciasESair($conexao, ['success' => false, 'message' => 'Nenhum dado de ausência recebido.', 'csrf_token' => $novoCsrfTokenParaCliente]);
         }
-        if (empty($dadosItensRecebidos) && isset($input['ausencias'])) { 
+        if (empty($dadosItensRecebidos) && isset($input['ausencias']) && is_array($input['ausencias'])) { 
             $logger->log('INFO', 'Array vazio de ausências recebido. Nenhuma ação no BD.', ['user_id' => $userId]);
             fecharConexaoAusenciasESair($conexao, ['success' => true, 'message' => 'Nenhuma ausência para salvar ou atualizar.', 'csrf_token' => $novoCsrfTokenParaCliente]);
         }
+        if (!is_array($dadosItensRecebidos)){
+            $logger->log('ERROR', 'Dados de ausências não são um array.', ['user_id' => $userId, 'received_type' => gettype($dadosItensRecebidos)]);
+            fecharConexaoAusenciasESair($conexao, ['success' => false, 'message' => 'Formato de dados inválido.', 'csrf_token' => $novoCsrfTokenParaCliente]);
+        }
+
 
         $errosOperacao = [];
         $sql_insert = "INSERT INTO ausencias (data_inicio, data_fim, colaborador_nome, observacoes, criado_por_usuario_id) VALUES (?, ?, ?, ?, ?)";
