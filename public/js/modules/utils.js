@@ -69,7 +69,7 @@ export async function buscarEArmazenarColaboradores() {
   }
   try {
     console.log("[DEBUG] Buscando colaboradores do servidor (utils.js)...");
-    const response = await fetch("obter_colaboradores.php");
+    const response = await fetch("api/obter_colaboradores.php");
     console.log(
       "[DEBUG] Resposta de obter_colaboradores.php status (utils.js):",
       response.status

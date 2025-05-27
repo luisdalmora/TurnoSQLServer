@@ -192,7 +192,7 @@ async function salvarDadosTurnosNoServidor(dadosTurnos, csrfToken) {
   };
 
   try {
-    const response = await fetch("salvar_turnos.php", {
+    const response = await fetch("api/salvar_turnos.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -258,7 +258,7 @@ async function excluirTurnosNoServidor(ids, csrfToken) {
     return;
 
   try {
-    const response = await fetch("salvar_turnos.php", {
+    const response = await fetch("api/salvar_turnos.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -481,7 +481,7 @@ export async function carregarTurnosDoServidor(
   }
 
   try {
-    const response = await fetch(`salvar_turnos.php?ano=${ano}&mes=${mes}`);
+    const response = await fetch(`api/salvar_turnos.php?ano=${ano}&mes=${mes}`);
     let data;
     if (!response.ok) {
       let errorMsg = `Erro HTTP ${response.status}`;

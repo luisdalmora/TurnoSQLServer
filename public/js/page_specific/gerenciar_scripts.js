@@ -1,5 +1,5 @@
 // src/js/gerenciar_scripts.js
-import { showToast } from "./modules/utils.js";
+import { showToast } from "../modules/utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   const formNovoScript = document.getElementById("form-novo-script");
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
       '<p class="text-center text-gray-500">Carregando scripts...</p>';
     try {
       const response = await fetch(
-        `api_scripts.php?search=${encodeURIComponent(termoPesquisa)}`
+        `api/api_scripts.php?search=${encodeURIComponent(termoPesquisa)}`
       );
       const data = await response.json();
 
@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       try {
-        const response = await fetch("api_scripts.php", {
+        const response = await fetch("api/api_scripts.php", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -223,7 +223,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'input[name="csrf_token"]'
     ).value;
     try {
-      const response = await fetch("api_scripts.php", {
+      const response = await fetch("api/api_scripts.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

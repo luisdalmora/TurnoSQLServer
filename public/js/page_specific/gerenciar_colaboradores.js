@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof lucide !== "undefined") lucide.createIcons();
 
     try {
-      const response = await fetch(`listar_colaboradores.php`); // Assumindo que está na raiz
+      const response = await fetch(`api/listar_colaboradores.php`); // Assumindo que está na raiz
       const data = await response.json();
       collaboratorsTableBody.innerHTML = ""; // Limpa antes de popular ou mostrar erro
 
@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const dataPayload = Object.fromEntries(formData.entries());
 
       try {
-        const response = await fetch("atualizar_colaborador.php", { // Assumindo que está na raiz
+        const response = await fetch("api/atualizar_colaborador.php", { // Assumindo que está na raiz
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dataPayload),
@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     try {
-      const response = await fetch("alternar_status_colaborador.php", { // Assumindo que está na raiz
+      const response = await fetch("api/alternar_status_colaborador.php", { // Assumindo que está na raiz
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

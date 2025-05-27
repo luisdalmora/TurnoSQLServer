@@ -140,7 +140,7 @@ if (reportSummaryDiv) {
 
 
       try {
-        const response = await fetch(`gerar_relatorio_turnos.php?${params.toString()}`);
+        const response = await fetch(`api/gerar_relatorio_turnos.php?${params.toString()}`);
         const data = await response.json();
 
         if (!response.ok) {

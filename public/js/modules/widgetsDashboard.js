@@ -15,7 +15,7 @@ export async function carregarFeriados(ano, mes) {
   tbody.innerHTML = `<tr><td colspan="2" class="p-2 text-center text-gray-500 text-sm">Carregando... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
   if (typeof lucide !== "undefined") lucide.createIcons();
   try {
-    const response = await fetch(`carregar_feriados.php?ano=${ano}&mes=${mes}`);
+    const response = await fetch(`api/carregar_feriados.php?ano=${ano}&mes=${mes}`);
     let data;
     if (!response.ok) {
       let errorMsg = `Erro HTTP ${response.status}`;
@@ -86,7 +86,7 @@ export async function carregarEscalaSabados(ano, mes) {
 
   try {
     const response = await fetch(
-      `carregar_escala_sabados.php?ano=${ano}&mes=${mes}`
+      `api/carregar_escala_sabados.php?ano=${ano}&mes=${mes}`
     );
     let data;
     if (!response.ok) {
@@ -155,7 +155,7 @@ export async function carregarAusenciaSetor(ano, mes) {
 
   try {
     const response = await fetch(
-      `carregar_ausencia_setor.php?ano=${ano}&mes=${mes}`
+      `api/carregar_ausencia_setor.php?ano=${ano}&mes=${mes}`
     );
     let data;
     if (!response.ok) {

@@ -10,7 +10,7 @@ async function carregarObservacaoGeral() {
   if (!textarea || !csrfTokenObsGeralInput) return;
 
   try {
-    const response = await fetch("gerenciar_observacao_geral.php");
+    const response = await fetch("api/gerenciar_observacao_geral.php");
     let data;
     if (!response.ok) {
       let errorMsg = `Erro HTTP ${response.status}`;
@@ -59,7 +59,7 @@ async function salvarObservacaoGeral() {
     csrf_token: csrfTokenInput.value,
   };
   try {
-    const response = await fetch("gerenciar_observacao_geral.php", {
+    const response = await fetch("api/gerenciar_observacao_geral.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

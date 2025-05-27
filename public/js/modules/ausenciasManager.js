@@ -190,7 +190,7 @@ async function salvarDadosAusenciasNoServidor(dadosAusencias, csrfToken) {
     csrf_token: csrfToken,
   };
   try {
-    const response = await fetch("gerenciar_ausencias.php", {
+    const response = await fetch("api/gerenciar_ausencias.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -248,7 +248,7 @@ async function excluirAusenciasNoServidor(ids, csrfToken) {
   if (!confirm(`Tem certeza que deseja excluir ${ids.length} ausência(ões)?`))
     return;
   try {
-    const response = await fetch("gerenciar_ausencias.php", {
+    const response = await fetch("api/gerenciar_ausencias.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -322,14 +322,14 @@ export async function carregarAusenciasDoServidor(ano, mes) {
   tableBody.innerHTML = `<tr><td colspan="5" class="p-2 text-center text-gray-500 text-sm">Carregando ausências (${mes}/${ano})... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
   if (typeof lucide !== "undefined") lucide.createIcons();
 
-  const url = `gerenciar_ausencias.php?ano=${ano}&mes=${mes}`;
+  const url = `api/gerenciar_ausencias.php?ano=${ano}&mes=${mes}`;
   console.log(
     `[DEBUG] Preparando para fazer fetch para ${url} (ausenciasManager.js)`
   );
   try {
     const response = await fetch(url);
     console.log(
-      `[DEBUG] Fetch para ${url} concluído. Status (ausenciasManager.js):`,
+      `[DEBUG] Fetch para ${url} concluído. Status (api/ausenciasManager.js):`,
       response.status
     );
 

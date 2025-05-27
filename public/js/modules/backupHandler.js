@@ -101,7 +101,7 @@ export function initBackupHandler() {
       const csrfToken = csrfTokenBackupInput.value;
 
       try {
-        const response = await fetch("backup_database.php", {
+        const response = await fetch("api/backup_database.php", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
