@@ -35,7 +35,7 @@ if (isset($_SESSION['flash_message'])) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
-<body class="bg-gray-100 font-poppins text-gray-700 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-gray-100 font-poppins text-gray-700">
     <div class="flex h-screen overflow-hidden"> 
         <aside class="w-64 bg-gradient-to-b from-blue-800 to-blue-700 text-indigo-100 flex flex-col flex-shrink-0 dark:from-gray-800 dark:to-gray-900 transition-colors duration-300">
             <div class="h-16 flex items-center px-4 md:px-6 border-b border-white/10 dark:border-gray-700">
@@ -85,11 +85,7 @@ if (isset($_SESSION['flash_message'])) {
                   <h1 class="text-md md:text-lg font-semibold text-gray-800 dark:text-gray-100">Cadastrar Novo Colaborador</h1>
                 </div>
                 <div class="flex items-center">
-                     <button id="darkModeToggle" title="Alternar tema" class="mr-4 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-                        <i data-lucide="moon" class="w-5 h-5"></i>
-                        <i data-lucide="sun" class="w-5 h-5 hidden"></i>
-                    </button>
-                    <div id="user-info" class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <div id="user-info" class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                       Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?>
                       <i data-lucide="circle-user-round" class="w-5 h-5 md:w-6 md:h-6 ml-2 text-blue-600 dark:text-blue-400"></i>
                     </div>

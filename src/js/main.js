@@ -11,82 +11,7 @@ import * as backupHandler from "./modules/backupHandler.js";
 console.log("[DEBUG] main.js: Módulo principal carregado.");
 
 // --- Dark Mode Handler ---
-function initializeDarkMode() {
-  const darkModeToggle = document.getElementById("darkModeToggle");
-  const htmlElement = document.documentElement;
-
-  if (!darkModeToggle) {
-    console.warn("[DEBUG] Botão darkModeToggle não encontrado.");
-    // Aplicar tema inicial mesmo sem botão
-    if (
-      localStorage.getItem("darkMode") === "true" ||
-      (!("darkMode" in localStorage) &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    ) {
-      htmlElement.classList.add("dark");
-    } else {
-      htmlElement.classList.remove("dark");
-    }
-    return;
-  }
-
-  const moonIcon = darkModeToggle.querySelector('i[data-lucide="moon"]');
-  const sunIcon = darkModeToggle.querySelector('i[data-lucide="sun"]');
-
-  const updateButtonState = () => {
-    const isDark = htmlElement.classList.contains("dark");
-    if (!moonIcon || !sunIcon) return;
-
-    if (isDark) {
-      moonIcon.classList.add("hidden");
-      sunIcon.classList.remove("hidden");
-    } else {
-      moonIcon.classList.remove("hidden");
-      sunIcon.classList.add("hidden");
-    }
-  };
-
-  // Define o tema inicial ao carregar a página
-  if (
-    localStorage.getItem("darkMode") === "true" ||
-    (!("darkMode" in localStorage) &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches)
-  ) {
-    htmlElement.classList.add("dark");
-  } else {
-    htmlElement.classList.remove("dark");
-  }
-  updateButtonState(); // Atualiza os ícones para o estado inicial
-
-  // Listener para o clique no botão
-  darkModeToggle.addEventListener("click", () => {
-    htmlElement.classList.toggle("dark"); // Alterna a classe no HTML
-    localStorage.setItem("darkMode", htmlElement.classList.contains("dark")); // Salva a preferência
-    updateButtonState(); // Atualiza os ícones
-
-    if (typeof lucide !== "undefined") {
-      lucide.createIcons(); // Garante que ícones Lucide sejam re-renderizados
-    }
-
-    // Exemplo para atualizar gráficos (adapte conforme sua implementação)
-    if (
-      typeof turnosManager !== "undefined" &&
-      typeof turnosManager.employeeHoursChartInstance !== "undefined" &&
-      turnosManager.employeeHoursChartInstance !== null
-    ) {
-      if (
-        document.getElementById("shifts-table-main") &&
-        typeof state !== "undefined" &&
-        state.currentDisplayYear &&
-        state.currentDisplayMonth
-      ) {
-        // Idealmente, chame uma função que apenas atualize as cores do gráfico.
-        // Se não, recarregar os dados pode forçar o redesenho com novas cores (se o gráfico for recriado).
-        // turnosManager.carregarTurnosDoServidor(state.currentDisplayYear, state.currentDisplayMonth, true);
-      }
-    }
-  });
-}
+// function initializeDarkMode() { ... } // TODA A FUNÇÃO REMOVIDA
 // --- Fim Dark Mode Handler ---
 
 async function syncDatesAndReloadAll(newYear, newMonth) {
@@ -133,7 +58,7 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("[DEBUG] DOMContentLoaded (main.js): Evento disparado.");
 
-  initializeDarkMode();
+  // initializeDarkMode(); // CHAMADA REMOVIDA
 
   console.log(
     `[DEBUG] Data inicial global (main.js) ${state.currentDisplayMonth}/${state.currentDisplayYear}`

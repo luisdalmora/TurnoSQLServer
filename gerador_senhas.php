@@ -34,7 +34,7 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
         html.dark .toast-message, html.dark .toast-title { color: #f3f4f6 !important; } /* gray-100 */
     </style>
 </head>
-<body class="bg-gray-100 font-poppins text-gray-700 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-gray-100 font-poppins text-gray-700">
     <div class="flex h-screen overflow-hidden">
         <aside class="w-64 bg-gradient-to-b from-blue-800 to-blue-700 text-indigo-100 flex flex-col flex-shrink-0 dark:from-gray-800 dark:to-gray-900 transition-colors duration-300">
             <div class="h-16 flex items-center px-4 md:px-6 border-b border-white/10 dark:border-gray-700">
@@ -83,10 +83,6 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
                     <h1 class="text-md md:text-lg font-semibold text-gray-800 dark:text-gray-100">Gerador de Senhas</h1>
                 </div>
                 <div class="flex items-center">
-                    <button id="darkModeToggle" title="Alternar tema" class="mr-4 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-                        <i data-lucide="moon" class="w-5 h-5"></i>
-                        <i data-lucide="sun" class="w-5 h-5 hidden"></i>
-                    </button>
                     <div id="user-info" class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                         Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?>
                         <i data-lucide="circle-user-round" class="w-5 h-5 md:w-6 md:h-6 ml-2 text-blue-600 dark:text-blue-400"></i>
@@ -109,7 +105,7 @@ $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
                         <p id="senhaGeradaDisplay" class="text-blue-600 dark:text-blue-300 text-4xl md:text-5xl font-bold break-all"></p>
                     </div>
 
-                    <button id="copiarSenha" class="w-full flex items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out hidden dark:bg-green-700 dark:hover:bg-green-600 dark:focus:ring-offset-gray-800">
+                    <button id="copiarSenha" class="w-full items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out hidden dark:bg-green-700 dark:hover:bg-green-600 dark:focus:ring-offset-gray-800">
                         <i data-lucide="copy" class="w-4 h-4 mr-2"></i> Copiar Senha
                     </button>
                 </section>

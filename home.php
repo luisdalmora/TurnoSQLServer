@@ -78,7 +78,7 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
     @keyframes progress-bar-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }
   </style>
 </head>
-<body class="bg-gray-100 font-poppins text-gray-700 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-gray-100 font-poppins text-gray-700">
 
   <div id="backup-modal-backdrop" class="modal-backdrop">
     <div class="modal-content-backup dark:bg-gray-800 dark:text-gray-200">
@@ -141,10 +141,6 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
           <h1 class="text-md md:text-lg font-semibold text-gray-800 dark:text-gray-100">Sim Posto - Gestão de Turnos</h1>
         </div>
         <div class="flex items-center">
-            <button id="darkModeToggle" title="Alternar tema" class="mr-4 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-blue-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-                <i data-lucide="moon" class="w-5 h-5"></i>
-                <i data-lucide="sun" class="w-5 h-5 hidden"></i>
-            </button>
             <div id="user-info" class="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
               Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?>
               <i data-lucide="circle-user-round" class="w-5 h-5 md:w-6 md:h-6 ml-2 text-blue-600 dark:text-blue-400"></i>

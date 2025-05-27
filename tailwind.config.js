@@ -1,6 +1,6 @@
 // tailwind.config.js
 module.exports = {
-  darkMode: "class", // ESSENCIAL para o modo escuro baseado em classe
+  // darkMode: 'class', // REMOVIDO
   content: ["./*.{php,html,js}", "./src/**/*.{html,js,php}"],
   theme: {
     extend: {
