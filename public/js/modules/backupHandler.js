@@ -12,19 +12,40 @@ function showBackupModal(
   elProgress,
   elDownloadLink,
   elCloseBtn,
-  elBackdrop
+  elBackdrop,
+  elModalContent // Adicionado para controlar animação do conteúdo
 ) {
-  if (elBackdrop) elBackdrop.classList.add("show");
+  if (elBackdrop) {
+    elBackdrop.classList.remove("hidden"); // Tornar o backdrop visível
+  }
+
+  if (elModalContent) {
+    // Pequeno atraso ou forçar reflow para garantir que a transição ocorra
+    requestAnimationFrame(() => {
+      elModalContent.classList.remove("opacity-0", "scale-95");
+      elModalContent.classList.add("opacity-100", "scale-100");
+    });
+  }
+
   if (elMsg) elMsg.textContent = message;
 
   if (elProgressContainer)
     elProgressContainer.style.display = isLoading ? "block" : "none";
   if (elProgress && isLoading) {
-    elProgress.style.width = "0%";
-    elProgress.classList.add("indeterminate"); // Para animação contínua
-    // setTimeout(() => (elProgress.style.width = "100%"), 100); // Não mais útil com indeterminate
+    elProgress.style.width = "0%"; // Reset para animação indeterminada
+    // Para animação de progresso real, você precisaria de um loop ou eventos de progresso
+    // Por agora, vamos simular um preenchimento rápido se for apenas visual.
+    // Se você quer uma barra indeterminada, você pode adicionar/remover uma classe CSS para isso.
+    // Para o efeito "indeterminate" que você tinha, uma classe CSS seria melhor:
+    // .indeterminate { animation: progress-indeterminate 2s infinite linear; }
+    // @keyframes progress-indeterminate { 0% { left: -100%; width: 100%; } 100% { left: 100%; width: 10%; } }
+    // No JS: elProgress.classList.add("indeterminate"); elProgress.classList.remove("indeterminate");
+    // Para simplificar e mostrar progresso visual:
+    setTimeout(() => {
+      if (isLoading && elProgress) elProgress.style.width = "100%";
+    }, 100);
   } else if (elProgress) {
-    elProgress.classList.remove("indeterminate");
+    // elProgress.classList.remove("indeterminate"); // se usando classe para indeterminado
   }
 
   if (elMsg) {
@@ -49,14 +70,30 @@ export function initBackupHandler() {
   );
   const backupProgressBar = document.getElementById("backup-progress-bar");
   const backupDownloadLink = document.getElementById("backup-download-link");
+
+  // Obter o elemento de conteúdo do modal para animação
+  const backupModalContent = backupModalBackdrop
+    ? backupModalBackdrop.querySelector(".modal-content-backup")
+    : null;
+
   let originalBackupBtnHTML = "";
 
   if (backupDbBtn && csrfTokenBackupInput) {
     originalBackupBtnHTML = backupDbBtn.innerHTML;
 
-    if (backupModalCloseBtn && backupModalBackdrop) {
+    if (backupModalCloseBtn && backupModalBackdrop && backupModalContent) {
       backupModalCloseBtn.addEventListener("click", () => {
-        backupModalBackdrop.classList.remove("show");
+        // Animação de saída
+        if (backupModalContent) {
+          backupModalContent.classList.add("opacity-0", "scale-95");
+          backupModalContent.classList.remove("opacity-100", "scale-100");
+        }
+
+        // Adiciona um pequeno atraso para a animação antes de esconder o backdrop
+        setTimeout(() => {
+          if (backupModalBackdrop) backupModalBackdrop.classList.add("hidden");
+        }, 300); // Ajuste este tempo para corresponder à sua duração de transição CSS
+
         if (backupDbBtn && originalBackupBtnHTML) {
           backupDbBtn.disabled = false;
           backupDbBtn.innerHTML = originalBackupBtnHTML;
@@ -79,11 +116,12 @@ export function initBackupHandler() {
         backupProgressBarContainer &&
         backupProgressBar &&
         backupDownloadLink &&
-        backupModalCloseBtn
+        backupModalCloseBtn &&
+        backupModalContent // Checa se o conteúdo do modal existe
       ) {
         showBackupModal(
           "Iniciando backup, por favor aguarde...",
-          true,
+          true, // isLoading
           false,
           false,
           backupModalMessage,
@@ -91,7 +129,8 @@ export function initBackupHandler() {
           backupProgressBar,
           backupDownloadLink,
           backupModalCloseBtn,
-          backupModalBackdrop
+          backupModalBackdrop,
+          backupModalContent // Passa o elemento de conteúdo
         );
       }
 
@@ -124,19 +163,19 @@ export function initBackupHandler() {
         data = await response.json();
 
         if (data.success) {
-          if (backupModalBackdrop) {
-            // Checa se o modal ainda é relevante
+          if (backupModalBackdrop && backupModalContent) {
             showBackupModal(
               data.message || "Backup concluído!",
-              false,
-              false,
-              true,
+              false, // isLoading
+              false, // isError
+              true, // isSuccess
               backupModalMessage,
               backupProgressBarContainer,
               backupProgressBar,
               backupDownloadLink,
               backupModalCloseBtn,
-              backupModalBackdrop
+              backupModalBackdrop,
+              backupModalContent // Passa o elemento de conteúdo
             );
             if (backupModalCloseBtn)
               backupModalCloseBtn.style.display = "inline-flex";
@@ -148,7 +187,6 @@ export function initBackupHandler() {
               !data.download_url &&
               backupDownloadLink
             ) {
-              // Fallback se só o nome do arquivo for retornado
               backupDownloadLink.href = `download_backup_file.php?file=${encodeURIComponent(
                 data.filename
               )}`;
@@ -164,18 +202,19 @@ export function initBackupHandler() {
           }
         } else {
           const errorMsg = data.message || "Falha no backup.";
-          if (backupModalBackdrop) {
+          if (backupModalBackdrop && backupModalContent) {
             showBackupModal(
               "Erro: " + errorMsg,
-              false,
-              true,
-              false,
+              false, // isLoading
+              true, // isError
+              false, // isSuccess
               backupModalMessage,
               backupProgressBarContainer,
               backupProgressBar,
               backupDownloadLink,
               backupModalCloseBtn,
-              backupModalBackdrop
+              backupModalBackdrop,
+              backupModalContent // Passa o elemento de conteúdo
             );
             if (backupModalCloseBtn)
               backupModalCloseBtn.style.display = "inline-flex";
@@ -187,26 +226,25 @@ export function initBackupHandler() {
           "[DEBUG] Erro requisição de backup (backupHandler.js):",
           error
         );
-        if (backupModalBackdrop) {
+        if (backupModalBackdrop && backupModalContent) {
           showBackupModal(
             "Erro de comunicação ao tentar backup. Verifique o console.",
-            false,
-            true,
-            false,
+            false, // isLoading
+            true, // isError
+            false, // isSuccess
             backupModalMessage,
             backupProgressBarContainer,
             backupProgressBar,
             backupDownloadLink,
             backupModalCloseBtn,
-            backupModalBackdrop
+            backupModalBackdrop,
+            backupModalContent // Passa o elemento de conteúdo
           );
           if (backupModalCloseBtn)
             backupModalCloseBtn.style.display = "inline-flex";
         }
         showToast("Erro de comunicação: " + error.message, "error");
       }
-      // Não reabilitar o botão aqui, pois o modal cobre a tela.
-      // O botão é reabilitado quando o modal é fechado.
     });
   } else {
     if (!backupDbBtn)

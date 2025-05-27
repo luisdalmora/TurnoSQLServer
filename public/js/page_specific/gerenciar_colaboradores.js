@@ -1,11 +1,13 @@
 // src/js/gerenciar_colaboradores.js
 // Importa as funções necessárias do módulo utils.js
-import { showToast } from './modules/utils.js';
+import { showToast } from "../modules/utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   console.log("[DEBUG] gerenciar_colaboradores.js: DOMContentLoaded");
 
-  const collaboratorsTableBody = document.querySelector("#collaborators-table tbody");
+  const collaboratorsTableBody = document.querySelector(
+    "#collaborators-table tbody"
+  );
   const editModal = document.getElementById("edit-collaborator-modal");
   const editForm = document.getElementById("edit-collaborator-form");
   const modalCloseButton = document.getElementById("modal-close-btn");
@@ -14,8 +16,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function carregarColaboradoresNaTabela() {
     if (!collaboratorsTableBody) {
-        console.warn("[DEBUG] gerenciar_colaboradores.js: collaboratorsTableBody não encontrado.");
-        return;
+      console.warn(
+        "[DEBUG] gerenciar_colaboradores.js: collaboratorsTableBody não encontrado."
+      );
+      return;
     }
     collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Carregando... <i data-lucide="loader-circle" class="lucide-spin inline-block"></i></td></tr>`;
     if (typeof lucide !== "undefined") lucide.createIcons();
@@ -44,14 +48,16 @@ document.addEventListener("DOMContentLoaded", function () {
             : '<span class="status-inativo">Inativo</span>';
           statusCell.className = "px-6 py-4 whitespace-nowrap text-sm";
 
-
           const actionsCell = row.insertCell();
-          actionsCell.className = "px-6 py-4 whitespace-nowrap text-right text-sm font-medium"; // Ajustado para Tailwind
+          actionsCell.className =
+            "px-6 py-4 whitespace-nowrap text-right text-sm font-medium"; // Ajustado para Tailwind
 
           // Botão Editar com classes Tailwind
           const editButton = document.createElement("button");
-          editButton.innerHTML = '<i data-lucide="edit-3" class="w-4 h-4 mr-1"></i> Editar';
-          editButton.className = "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 inline-flex items-center"; // Adicionadas classes Tailwind
+          editButton.innerHTML =
+            '<i data-lucide="edit-3" class="w-4 h-4 mr-1"></i> Editar';
+          editButton.className =
+            "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 inline-flex items-center"; // Adicionadas classes Tailwind
           editButton.title = "Editar Colaborador";
           editButton.onclick = () => abrirModalEdicao(colab);
           actionsCell.appendChild(editButton);
@@ -64,8 +70,11 @@ document.addEventListener("DOMContentLoaded", function () {
           toggleStatusButton.className = colab.ativo
             ? "action-button warning btn-sm text-yellow-600 hover:text-yellow-900 inline-flex items-center" // Adicionadas classes Tailwind
             : "action-button success btn-sm text-green-600 hover:text-green-900 inline-flex items-center"; // Adicionadas classes Tailwind
-          toggleStatusButton.title = colab.ativo ? "Desativar Colaborador" : "Ativar Colaborador";
-          toggleStatusButton.onclick = () => alternarStatusColaborador(colab.id, !colab.ativo);
+          toggleStatusButton.title = colab.ativo
+            ? "Desativar Colaborador"
+            : "Ativar Colaborador";
+          toggleStatusButton.onclick = () =>
+            alternarStatusColaborador(colab.id, !colab.ativo);
           actionsCell.appendChild(toggleStatusButton);
         });
         if (typeof lucide !== "undefined") lucide.createIcons();
@@ -75,20 +84,29 @@ document.addEventListener("DOMContentLoaded", function () {
         showToast("Erro ao carregar colaboradores: " + errorMessage, "error");
       }
     } catch (error) {
-      console.error("Erro ao buscar colaboradores (gerenciar_colaboradores.js):", error);
+      console.error(
+        "Erro ao buscar colaboradores (gerenciar_colaboradores.js):",
+        error
+      );
       collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Erro de conexão ao carregar colaboradores.</td></tr>`;
-      showToast("Erro de conexão ao carregar colaboradores: " + error.message, "error");
+      showToast(
+        "Erro de conexão ao carregar colaboradores: " + error.message,
+        "error"
+      );
     }
   }
 
   function abrirModalEdicao(colaborador) {
     if (!editModal || !editForm) {
-        console.warn("[DEBUG] gerenciar_colaboradores.js: Modal de edição ou formulário não encontrado.");
-        return;
+      console.warn(
+        "[DEBUG] gerenciar_colaboradores.js: Modal de edição ou formulário não encontrado."
+      );
+      return;
     }
     editForm.reset();
     document.getElementById("edit-colab-id").value = colaborador.id;
-    document.getElementById("edit-nome_completo").value = colaborador.nome_completo;
+    document.getElementById("edit-nome_completo").value =
+      colaborador.nome_completo;
     document.getElementById("edit-email").value = colaborador.email || "";
     document.getElementById("edit-cargo").value = colaborador.cargo || "";
 
@@ -118,21 +136,24 @@ document.addEventListener("DOMContentLoaded", function () {
   if (editForm) {
     editForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      console.log("[DEBUG] gerenciar_colaboradores.js: Formulário de edição submetido.");
+      console.log(
+        "[DEBUG] gerenciar_colaboradores.js: Formulário de edição submetido."
+      );
       const saveButton = document.getElementById("save-edit-colab-button");
       const originalButtonHtml = saveButton ? saveButton.innerHTML : "";
-      if(saveButton) {
+      if (saveButton) {
         saveButton.disabled = true;
-        saveButton.innerHTML = '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Salvando...';
+        saveButton.innerHTML =
+          '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Salvando...';
         if (typeof lucide !== "undefined") lucide.createIcons();
       }
-
 
       const formData = new FormData(editForm);
       const dataPayload = Object.fromEntries(formData.entries());
 
       try {
-        const response = await fetch("api/atualizar_colaborador.php", { // Assumindo que está na raiz
+        const response = await fetch("api/atualizar_colaborador.php", {
+          // Assumindo que está na raiz
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dataPayload),
@@ -149,21 +170,31 @@ document.addEventListener("DOMContentLoaded", function () {
           carregarColaboradoresNaTabela(); // Recarrega a tabela
           // Atualiza o token CSRF na página principal se o backend enviar um novo
           if (result.csrf_token) {
-            const csrfTokenPageInput = document.getElementById("csrf-token-colab-manage"); // Este ID é do <input hidden> na página principal
-            if (csrfTokenPageInput) csrfTokenPageInput.value = result.csrf_token;
+            const csrfTokenPageInput = document.getElementById(
+              "csrf-token-colab-manage"
+            ); // Este ID é do <input hidden> na página principal
+            if (csrfTokenPageInput)
+              csrfTokenPageInput.value = result.csrf_token;
             // Atualiza também o token dentro do modal para a próxima submissão, se o modal não for recriado
-            const csrfTokenModalInput = document.getElementById("edit-csrf-token");
-            if (csrfTokenModalInput) csrfTokenModalInput.value = result.csrf_token;
-
+            const csrfTokenModalInput =
+              document.getElementById("edit-csrf-token");
+            if (csrfTokenModalInput)
+              csrfTokenModalInput.value = result.csrf_token;
           }
         } else {
-          showToast("Erro ao atualizar: " + (result.message || "Erro desconhecido."), "error");
+          showToast(
+            "Erro ao atualizar: " + (result.message || "Erro desconhecido."),
+            "error"
+          );
         }
       } catch (error) {
-        console.error("Erro ao salvar edição do colaborador (gerenciar_colaboradores.js):", error);
+        console.error(
+          "Erro ao salvar edição do colaborador (gerenciar_colaboradores.js):",
+          error
+        );
         showToast("Erro crítico ao salvar: " + error.message, "error");
       } finally {
-        if(saveButton){
+        if (saveButton) {
           saveButton.disabled = false;
           saveButton.innerHTML = originalButtonHtml;
           if (typeof lucide !== "undefined") lucide.createIcons();
@@ -171,14 +202,19 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   } else {
-    console.warn("[DEBUG] gerenciar_colaboradores.js: Formulário edit-collaborator-form não encontrado.");
+    console.warn(
+      "[DEBUG] gerenciar_colaboradores.js: Formulário edit-collaborator-form não encontrado."
+    );
   }
 
   async function alternarStatusColaborador(colabId, novoStatusBool) {
     const acaoTexto = novoStatusBool ? "ativar" : "desativar";
-    if (!confirm(`Tem certeza que deseja ${acaoTexto} este colaborador?`)) return;
+    if (!confirm(`Tem certeza que deseja ${acaoTexto} este colaborador?`))
+      return;
 
-    const csrfTokenPageInput = document.getElementById("csrf-token-colab-manage"); // ID do token na página principal
+    const csrfTokenPageInput = document.getElementById(
+      "csrf-token-colab-manage"
+    ); // ID do token na página principal
     const csrfToken = csrfTokenPageInput ? csrfTokenPageInput.value : null;
 
     if (!csrfToken) {
@@ -193,7 +229,8 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     try {
-      const response = await fetch("api/alternar_status_colaborador.php", { // Assumindo que está na raiz
+      const response = await fetch("api/alternar_status_colaborador.php", {
+        // Assumindo que está na raiz
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -212,19 +249,28 @@ document.addEventListener("DOMContentLoaded", function () {
           csrfTokenPageInput.value = result.csrf_token;
         }
       } else {
-        showToast("Erro ao alterar status: " + (result.message || "Erro desconhecido."), "error");
+        showToast(
+          "Erro ao alterar status: " + (result.message || "Erro desconhecido."),
+          "error"
+        );
       }
     } catch (error) {
-      console.error("Erro ao alternar status (gerenciar_colaboradores.js):", error);
+      console.error(
+        "Erro ao alternar status (gerenciar_colaboradores.js):",
+        error
+      );
       showToast("Erro crítico ao alterar status: " + error.message, "error");
     }
   }
 
-  if (modalCloseButton) modalCloseButton.addEventListener("click", fecharModalEdicao);
-  if (cancelEditButton) cancelEditButton.addEventListener("click", fecharModalEdicao);
+  if (modalCloseButton)
+    modalCloseButton.addEventListener("click", fecharModalEdicao);
+  if (cancelEditButton)
+    cancelEditButton.addEventListener("click", fecharModalEdicao);
   if (editModal) {
     editModal.addEventListener("click", function (event) {
-      if (event.target === editModal) { // Fecha se clicar no overlay
+      if (event.target === editModal) {
+        // Fecha se clicar no overlay
         fecharModalEdicao();
       }
     });
@@ -234,6 +280,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (collaboratorsTableBody) {
     carregarColaboradoresNaTabela();
   } else {
-    console.warn("[DEBUG] gerenciar_colaboradores.js: Tabela de colaboradores não encontrada no DOM para carregamento inicial.");
+    console.warn(
+      "[DEBUG] gerenciar_colaboradores.js: Tabela de colaboradores não encontrada no DOM para carregamento inicial."
+    );
   }
 });

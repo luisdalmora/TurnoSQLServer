@@ -1,7 +1,11 @@
 // src/js/relatorio_turnos.js
 // Importa as funções necessárias do módulo utils.js
 // O caminho './modules/utils.js' assume que relatorio_turnos.js está em src/js/
-import { showToast, buscarEArmazenarColaboradores, popularSelectColaborador } from './modules/utils.js';
+import {
+  showToast,
+  buscarEArmazenarColaboradores,
+  popularSelectColaborador,
+} from "../modules/utils.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   console.log("[DEBUG] relatorio_turnos.js: DOMContentLoaded");
@@ -10,31 +14,45 @@ document.addEventListener("DOMContentLoaded", function () {
   const filtroColaboradorSelect = document.getElementById("filtro-colaborador");
   const reportTableBody = document.querySelector("#report-table tbody");
   const reportSummaryDiv = document.getElementById("report-summary");
-  const generateReportButton = document.getElementById("generate-report-button");
+  const generateReportButton = document.getElementById(
+    "generate-report-button"
+  );
   const csrfTokenReportPage = document.getElementById("csrf-token-reports"); // Já presente no HTML da página
 
   async function carregarColaboradoresParaFiltroRelatorio() {
-    console.log("[DEBUG] relatorio_turnos.js: carregarColaboradoresParaFiltroRelatorio");
+    console.log(
+      "[DEBUG] relatorio_turnos.js: carregarColaboradoresParaFiltroRelatorio"
+    );
     let colaboradores = [];
     try {
       // Usa a função importada diretamente
       colaboradores = await buscarEArmazenarColaboradores();
     } catch (e) {
-      console.error("relatorio_turnos.js: Erro ao buscar colaboradores via buscarEArmazenarColaboradores", e);
-      showToast("Falha ao carregar lista de colaboradores para o filtro.", "error");
+      console.error(
+        "relatorio_turnos.js: Erro ao buscar colaboradores via buscarEArmazenarColaboradores",
+        e
+      );
+      showToast(
+        "Falha ao carregar lista de colaboradores para o filtro.",
+        "error"
+      );
     }
 
     if (filtroColaboradorSelect) {
       // Usa a função importada diretamente, passando o array de colaboradores obtido
       popularSelectColaborador(filtroColaboradorSelect, null, colaboradores);
     } else {
-      console.warn("[DEBUG] relatorio_turnos.js: Elemento filtro-colaborador não encontrado.");
+      console.warn(
+        "[DEBUG] relatorio_turnos.js: Elemento filtro-colaborador não encontrado."
+      );
     }
   }
 
   function exibirDadosRelatorio(turnos, totalHoras, totalTurnos) {
     if (!reportTableBody) {
-      console.warn("[DEBUG] relatorio_turnos.js: reportTableBody não encontrado.");
+      console.warn(
+        "[DEBUG] relatorio_turnos.js: reportTableBody não encontrado."
+      );
       return;
     }
     reportTableBody.innerHTML = "";
@@ -52,54 +70,76 @@ document.addEventListener("DOMContentLoaded", function () {
       const row = reportTableBody.insertRow();
       const cell = row.insertCell();
       cell.colSpan = 5;
-      cell.textContent = "Nenhum turno encontrado para os filtros selecionados.";
+      cell.textContent =
+        "Nenhum turno encontrado para os filtros selecionados.";
       cell.style.textAlign = "center";
     }
 
-if (reportSummaryDiv) {
-    if (typeof totalTurnos !== 'undefined' && typeof totalHoras !== 'undefined') { // Verifica se as variáveis estão definidas
+    if (reportSummaryDiv) {
+      if (
+        typeof totalTurnos !== "undefined" &&
+        typeof totalHoras !== "undefined"
+      ) {
+        // Verifica se as variáveis estão definidas
         if (totalTurnos > 0) {
-            // Certifique-se que totalHoras é um número antes de chamar toFixed()
-            const horasFormatadas = (typeof totalHoras === 'number')
-                ? totalHoras.toFixed(2).replace(".", ",")
-                : 'N/A'; // Ou algum outro valor padrão se não for número
+          // Certifique-se que totalHoras é um número antes de chamar toFixed()
+          const horasFormatadas =
+            typeof totalHoras === "number"
+              ? totalHoras.toFixed(2).replace(".", ",")
+              : "N/A"; // Ou algum outro valor padrão se não for número
 
-            reportSummaryDiv.innerHTML = `
+          reportSummaryDiv.innerHTML = `
                 <p>Total de Turnos no período: <strong>${totalTurnos}</strong></p>
                 <p>Total de Horas Trabalhadas: <strong>${horasFormatadas}h</strong></p>
             `;
         } else {
-            reportSummaryDiv.innerHTML = "<p>Nenhum turno encontrado para exibir o resumo.</p>";
+          reportSummaryDiv.innerHTML =
+            "<p>Nenhum turno encontrado para exibir o resumo.</p>";
         }
+      } else {
+        reportSummaryDiv.innerHTML =
+          "<p>Dados para o resumo estão indisponíveis.</p>";
+        console.warn(
+          "[DEBUG] relatorio_turnos.js: totalTurnos ou totalHoras não definidos."
+        );
+      }
     } else {
-        reportSummaryDiv.innerHTML = "<p>Dados para o resumo estão indisponíveis.</p>";
-        console.warn("[DEBUG] relatorio_turnos.js: totalTurnos ou totalHoras não definidos.");
+      console.warn(
+        "[DEBUG] relatorio_turnos.js: reportSummaryDiv não encontrado."
+      );
     }
-} else {
-    console.warn("[DEBUG] relatorio_turnos.js: reportSummaryDiv não encontrado.");
-}
-}
+  }
 
   if (reportFiltersForm) {
     reportFiltersForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      console.log("[DEBUG] relatorio_turnos.js: Formulário de filtros submetido.");
+      console.log(
+        "[DEBUG] relatorio_turnos.js: Formulário de filtros submetido."
+      );
 
-      const originalButtonHtml = generateReportButton ? generateReportButton.innerHTML : "";
+      const originalButtonHtml = generateReportButton
+        ? generateReportButton.innerHTML
+        : "";
 
       if (generateReportButton) {
         generateReportButton.disabled = true;
-        generateReportButton.innerHTML = '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Gerando...';
+        generateReportButton.innerHTML =
+          '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Gerando...';
         if (typeof lucide !== "undefined") lucide.createIcons();
       }
 
       const dataInicio = document.getElementById("filtro-data-inicio").value;
       const dataFim = document.getElementById("filtro-data-fim").value;
-      const colaborador = filtroColaboradorSelect ? filtroColaboradorSelect.value : "";
+      const colaborador = filtroColaboradorSelect
+        ? filtroColaboradorSelect.value
+        : "";
       const csrfToken = csrfTokenReportPage ? csrfTokenReportPage.value : null;
 
       if (!dataInicio || !dataFim) {
-        showToast("Por favor, selecione o período (Data Início e Data Fim).", "warning");
+        showToast(
+          "Por favor, selecione o período (Data Início e Data Fim).",
+          "warning"
+        );
         if (generateReportButton) {
           generateReportButton.disabled = false;
           generateReportButton.innerHTML = originalButtonHtml;
@@ -108,7 +148,10 @@ if (reportSummaryDiv) {
         return;
       }
       if (new Date(dataInicio) > new Date(dataFim)) {
-        showToast("A Data Início não pode ser posterior à Data Fim.", "warning");
+        showToast(
+          "A Data Início não pode ser posterior à Data Fim.",
+          "warning"
+        );
         if (generateReportButton) {
           generateReportButton.disabled = false;
           generateReportButton.innerHTML = originalButtonHtml;
@@ -117,7 +160,10 @@ if (reportSummaryDiv) {
         return;
       }
       if (!csrfToken) {
-        showToast("Erro de segurança (token ausente). Recarregue a página.", "error");
+        showToast(
+          "Erro de segurança (token ausente). Recarregue a página.",
+          "error"
+        );
         if (generateReportButton) {
           generateReportButton.disabled = false;
           generateReportButton.innerHTML = originalButtonHtml;
@@ -138,9 +184,10 @@ if (reportSummaryDiv) {
         if (typeof lucide !== "undefined") lucide.createIcons();
       }
 
-
       try {
-        const response = await fetch(`api/gerar_relatorio_turnos.php?${params.toString()}`);
+        const response = await fetch(
+          `api/gerar_relatorio_turnos.php?${params.toString()}`
+        );
         const data = await response.json();
 
         if (!response.ok) {
@@ -148,16 +195,28 @@ if (reportSummaryDiv) {
         }
 
         if (data.success) {
-          exibirDadosRelatorio(data.turnos, data.total_geral_horas, data.total_turnos);
-          if (data.csrf_token && csrfTokenReportPage) { // Atualiza o token na página se o backend enviar um novo
+          exibirDadosRelatorio(
+            data.turnos,
+            data.total_geral_horas,
+            data.total_turnos
+          );
+          if (data.csrf_token && csrfTokenReportPage) {
+            // Atualiza o token na página se o backend enviar um novo
             csrfTokenReportPage.value = data.csrf_token;
           }
         } else {
-          showToast("Erro ao gerar relatório: " + (data.message || "Erro desconhecido."), "error");
+          showToast(
+            "Erro ao gerar relatório: " +
+              (data.message || "Erro desconhecido."),
+            "error"
+          );
           exibirDadosRelatorio([], 0, 0);
         }
       } catch (error) {
-        console.error("Erro na requisição do relatório (relatorio_turnos.js):", error);
+        console.error(
+          "Erro na requisição do relatório (relatorio_turnos.js):",
+          error
+        );
         showToast(`Erro crítico ao buscar dados: ${error.message}`, "error");
         exibirDadosRelatorio([], 0, 0);
       } finally {
@@ -169,7 +228,9 @@ if (reportSummaryDiv) {
       }
     });
   } else {
-    console.warn("[DEBUG] relatorio_turnos.js: Formulário report-filters-form não encontrado.");
+    console.warn(
+      "[DEBUG] relatorio_turnos.js: Formulário report-filters-form não encontrado."
+    );
   }
 
   // Carregamento inicial de colaboradores e datas padrão

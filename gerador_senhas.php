@@ -45,7 +45,7 @@ $currentPage = 'gerador_senhas';
 $headerIcon = '<i data-lucide="key-round" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
 
-$pageSpecificJs = ['/public/js/page_specific/gerador_senhas.js'];
+$pageSpecificJs = ['/public/js/page_specific/gerador_senhas_script.js'];
 // CSS do Toastr pode ser linkado no header.php ou aqui via $pageSpecificCss se não quiser global.
 // Adicionando ao $pageSpecificCss para ser pego pelo header.php:
 $pageSpecificCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css'];
@@ -78,7 +78,7 @@ require_once __DIR__ . '/templates/header.php';
 // jQuery e Toastr são carregados via CDN no footer para esta página,
 // conforme o arquivo original. Se preferir local, adicione aos $pageSpecificJs.
 $pageSpecificJs = [
-    '/public/js/page_specific/gerador_senhas.js' // O seu script JS que usa jQuery e Toastr
+    '/public/js/page_specific/gerador_senhas_script.js' // O seu script JS que usa jQuery e Toastr
 ];
 
 // O footer.php incluirá os scripts.
