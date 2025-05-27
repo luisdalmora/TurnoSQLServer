@@ -1,19 +1,14 @@
 // tailwind.config.js
 module.exports = {
-  content: [
-    "./*.{php,html,js}", // Para arquivos na raiz como index.html, home.php, etc.
-    "./src/**/*.{html,js,php}", // Para arquivos dentro da pasta /src
-  ],
+  darkMode: "class", // ESSENCIAL para o modo escuro baseado em classe
+  content: ["./*.{php,html,js}", "./src/**/*.{html,js,php}"],
   theme: {
     extend: {
       fontFamily: {
         poppins: ["Poppins", "sans-serif"],
-        "roboto-mono": ['"Roboto Mono"', "monospace"], // Sua configuração da fonte Poppins
+        "roboto-mono": ['"Roboto Mono"', "monospace"],
       },
     },
   },
-  plugins: [
-    // Se você instalou @tailwindcss/forms e quer usá-lo:
-    require("@tailwindcss/forms"),
-  ],
+  plugins: [require("@tailwindcss/forms")],
 };
