@@ -10,18 +10,16 @@ import * as backupHandler from "./modules/backupHandler.js";
 
 console.log("[DEBUG] main.js: Módulo principal carregado.");
 
-// --- Dark Mode Handler ---
-// function initializeDarkMode() { ... } // TODA A FUNÇÃO REMOVIDA
-// --- Fim Dark Mode Handler ---
-
+// Função centralizada para navegação de mês e recarregamento de dados
 async function syncDatesAndReloadAll(newYear, newMonth) {
   console.log(
     `[DEBUG] syncDatesAndReloadAll (main.js) chamado com newYear: ${newYear}, newMonth: ${newMonth}`
   );
-  state.updateGlobalDate(newYear, newMonth);
+  state.updateGlobalDate(newYear, newMonth); // Atualiza o estado global
 
-  uiUpdater.updateAllDisplays();
+  uiUpdater.updateAllDisplays(); // Atualiza todos os displays de data na UI
 
+  // Recarrega dados dos módulos que dependem da data global
   if (document.getElementById("shifts-table-main")) {
     await turnosManager.carregarTurnosDoServidor(
       state.currentDisplayYear,
@@ -57,13 +55,12 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
 
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("[DEBUG] DOMContentLoaded (main.js): Evento disparado.");
-
-  // initializeDarkMode(); // CHAMADA REMOVIDA
-
   console.log(
     `[DEBUG] Data inicial global (main.js) ${state.currentDisplayMonth}/${state.currentDisplayYear}`
   );
 
+  // Tenta pegar a data inicial dos data-attributes do elemento de display de turnos, se existir
+  // Isso é útil se o PHP pré-renderizar uma data diferente da atual.
   const displayElementInit = document.getElementById(
     "current-month-year-display"
   );
@@ -82,8 +79,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  uiUpdater.updateAllDisplays();
+  uiUpdater.updateAllDisplays(); // Atualiza todos os displays com a data correta (inicial ou do DOM)
 
+  // Inicialização de funcionalidades
   if (typeof lucide !== "undefined") {
     lucide.createIcons();
   } else {
@@ -92,10 +90,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
   }
 
-  if (typeof utils.buscarEArmazenarColaboradores === "function") {
-    await utils.buscarEArmazenarColaboradores();
-  }
+  await utils.buscarEArmazenarColaboradores(); // Carrega colaboradores uma vez para todos os módulos
 
+  // Carregamento inicial de dados para os módulos presentes na página home.php
+  // Verifique a existência dos elementos antes de carregar/inicializar
   if (document.getElementById("shifts-table-main")) {
     turnosManager.initTurnosEventListeners();
     await turnosManager.carregarTurnosDoServidor(
@@ -136,9 +134,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     backupHandler.initBackupHandler();
   }
 
+  // --- Event Listeners Globais (Navegação de Mês) ---
   const prevMonthButton = document.getElementById("prev-month-button");
   if (prevMonthButton) {
     prevMonthButton.addEventListener("click", () => {
+      console.log("[DEBUG] Botão 'Anterior' (Turnos/Geral) clicado (main.js).");
       let newMonth = state.currentDisplayMonth - 1;
       let newYear = state.currentDisplayYear;
       if (newMonth < 1) {
@@ -152,6 +152,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const nextMonthButton = document.getElementById("next-month-button");
   if (nextMonthButton) {
     nextMonthButton.addEventListener("click", () => {
+      console.log("[DEBUG] Botão 'Próximo' (Turnos/Geral) clicado (main.js).");
       let newMonth = state.currentDisplayMonth + 1;
       let newYear = state.currentDisplayYear;
       if (newMonth > 12) {
@@ -162,17 +163,32 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
+  // Navegação específica para Ausências (se os botões forem diferentes e não controlarem tudo)
+  // Se os botões "prev-month-button" e "next-month-button" são os únicos para navegação geral,
+  // os listeners abaixo podem não ser necessários ou precisarão de IDs diferentes.
+  // O script.js original tinha IDs "prev-month-ausencias-button" e "next-month-ausencias-button"
+  // que também chamavam syncDatesAndReloadAll. Se esses botões controlam a mesma data global,
+  // os listeners acima já cobrem.
   const prevMonthBtnAus = document.getElementById(
     "prev-month-ausencias-button"
   );
   if (prevMonthBtnAus && prevMonthBtnAus !== prevMonthButton) {
+    // Só adiciona se for um botão diferente
     prevMonthBtnAus.addEventListener("click", () => {
+      console.log(
+        "[DEBUG] Botão 'Anterior' (Ausências Específico) clicado (main.js)."
+      );
       let newMonth = state.currentDisplayMonthAusencias - 1;
       let newYear = state.currentDisplayYearAusencias;
       if (newMonth < 1) {
         newMonth = 12;
         newYear--;
       }
+      // Se a navegação de ausências deve ser independente:
+      // state.setAusenciasDate(newYear, newMonth);
+      // uiUpdater.updateCurrentMonthYearDisplayAusencias();
+      // ausenciasManager.carregarAusenciasDoServidor(newYear, newMonth);
+      // Ou se deve sincronizar tudo:
       syncDatesAndReloadAll(newYear, newMonth);
     });
   }
@@ -181,17 +197,23 @@ document.addEventListener("DOMContentLoaded", async function () {
     "next-month-ausencias-button"
   );
   if (nextMonthBtnAus && nextMonthBtnAus !== nextMonthButton) {
+    // Só adiciona se for um botão diferente
     nextMonthBtnAus.addEventListener("click", () => {
+      console.log(
+        "[DEBUG] Botão 'Próximo' (Ausências Específico) clicado (main.js)."
+      );
       let newMonth = state.currentDisplayMonthAusencias + 1;
       let newYear = state.currentDisplayYearAusencias;
       if (newMonth > 12) {
         newMonth = 1;
         newYear++;
       }
+      // Similar ao anterior, decidir se é navegação independente ou sincronizada
       syncDatesAndReloadAll(newYear, newMonth);
     });
   }
 
+  // Logout (do script.js original)
   const logoutLk = document.getElementById("logout-link");
   if (logoutLk) {
     logoutLk.addEventListener("click", (e) => {
@@ -202,9 +224,23 @@ document.addEventListener("DOMContentLoaded", async function () {
       }, 1500);
     });
   }
+
+  // Placeholder flutuante (do index.html e conta.html, pode ser generalizado aqui se necessário para outras páginas)
+  // Se for apenas para login/cadastro, manter nos HTMLs específicos é mais simples.
+  // Para generalizar, seria necessário garantir que os seletores existam.
+  // document.querySelectorAll('.input-field:not(select)').forEach(input => {
+  //   if(input) { // Checa se o input existe na página atual
+  //     const checkValue = () => { input.classList.toggle("has-val", input.value.trim() !== ""); };
+  //     input.addEventListener("blur", checkValue);
+  //     input.addEventListener("input", checkValue);
+  //     checkValue();
+  //   }
+  // });
+
   console.log(
     "[DEBUG] main.js: Todos os listeners e carregamentos iniciais configurados."
   );
 });
-window.showGlobalToast = utils.showToast;
+// ... final do main.js
+window.showGlobalToast = utils.showToast; // Expõe a função para ser usada por scripts inline antigos
 console.log("[DEBUG] main.js: Fim da análise do script.");
