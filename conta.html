@@ -8,14 +8,227 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="src/output.css">
+  <style>
+    /* Estilos básicos do login-page-container e input-field se style.css foi removido */
+    /* Idealmente, estes seriam classes Tailwind ou no src/input.css */
+    body,
+    html {
+      height: 100%;
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .login-page-container {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+      background: linear-gradient(-135deg, #0f2c5d, #1d5ca1);
+    }
+
+    .login-content-wrapper {
+      width: 960px;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      padding: 100px 130px 100px 95px;
+    }
+
+    .login-form-wrapper {
+      width: 290px;
+    }
+
+    .login-form-title {
+      font-size: 24px;
+      color: #333;
+      line-height: 1.2;
+      text-align: center;
+      width: 100%;
+      display: block;
+      padding-bottom: 54px;
+    }
+
+    .login-form-title i {
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    .input-group {
+      position: relative;
+      width: 100%;
+      z-index: 1;
+    }
+
+    .input-field {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #666;
+      display: block;
+      width: 100%;
+      background: #e6e6e6;
+      height: 50px;
+      border-radius: 25px;
+      padding: 0 30px 0 68px;
+      border: none;
+      outline: none;
+    }
+
+    .input-focus-effect {
+      position: absolute;
+      display: block;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      border-radius: 25px;
+      box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+      transition: all .4s;
+    }
+
+    .input-field:focus+.input-focus-effect {
+      box-shadow: 0px 0px 15px 2px rgba(29, 92, 161, 0.3);
+    }
+
+    .input-field.has-val+.input-focus-effect::after {
+      top: -20px;
+      font-size: 15px;
+    }
+
+    /* Efeito placeholder flutuante */
+    .input-focus-effect::before {
+      content: "";
+      display: block;
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #1d5ca1;
+      transition: all .4s;
+    }
+
+    .input-field:focus+.input-focus-effect::before {
+      width: 100%;
+    }
+
+    .input-focus-effect::after {
+      font-size: 18px;
+      color: #999;
+      line-height: 1.2;
+      content: attr(data-placeholder);
+      display: block;
+      width: 100%;
+      position: absolute;
+      top: 16px;
+      left: 0;
+      padding-left: 30px;
+      transition: all .4s;
+    }
+
+    .login-form-button-container {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding-top: 20px;
+    }
+
+    .login-form-button {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #fff;
+      text-transform: uppercase;
+      width: 100%;
+      height: 50px;
+      border-radius: 25px;
+      background: #1d5ca1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0 25px;
+      transition: all .4s;
+      border: none;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .login-form-button:hover {
+      background: #0f2c5d;
+    }
+
+    .login-form-button i {
+      margin-right: 8px;
+    }
+
+    .login-utility-links {
+      list-style: none;
+      padding: 0;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .login-utility-links li {
+      margin-bottom: 8px;
+    }
+
+    .utility-text-primary {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .utility-text-secondary {
+      font-size: 13px;
+      color: #333;
+      line-height: 1.5;
+      text-decoration: none;
+    }
+
+    .utility-text-secondary:hover {
+      text-decoration: underline;
+    }
+
+    .login-image {
+      width: 316px;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+
+    .margin-top-35 {
+      margin-top: 35px;
+    }
+
+    .margin-bottom-35 {
+      margin-bottom: 35px;
+    }
+
+    .margin-bottom-8 {
+      margin-bottom: 8px;
+    }
+
+    /* Para ícones dentro de botões e links */
+    .login-form-button i,
+    .login-utility-links a i {
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+  </style>
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
 <body class="login-page-container">
   <div class="login-content-wrapper">
     <div class="login-form-wrapper"> <span class="login-form-title">
-        <i data-lucide="user-plus" style="margin-right: 10px;"></i> Criar Conta
+        <i data-lucide="user-plus"></i> Criar Conta
       </span>
       <form method="POST" action="cadastrar.php">
         <div class="input-group margin-bottom-35">
@@ -49,33 +262,15 @@
       <ul class="login-utility-links">
         <li>
           <a href="index.html" class="utility-text-secondary">
-            <i data-lucide="arrow-left" style="vertical-align: middle; margin-right: 4px;"></i> Voltar para Login
+            <i data-lucide="arrow-left"></i> Voltar para Login
           </a>
         </li>
       </ul>
     </div>
-
-    <img src="images/index.png" alt="Imagem ilustrativa para cadastro" class="login-image" />
+    <img src="public/images/index.png" alt="Imagem ilustrativa para cadastro" class="login-image" />
   </div>
 
-  <script type="module"> 
-    // Script para efeito flutuante do placeholder
-    document.querySelectorAll('.input-field').forEach(input => {
-      const checkValue = () => {
-        input.classList.toggle("has-val", input.value.trim() !== "");
-      };
-      input.addEventListener("blur", checkValue);
-      input.addEventListener("input", checkValue);
-      checkValue();
-    });
-
-    // Inicializa Lucide Icons
-    document.addEventListener('DOMContentLoaded', () => {
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
-    });
-  </script>
+  <script src="public/js/page_specific/auth_forms.js" type="module"></script>
 </body>
 
 </html>
