@@ -42,7 +42,7 @@ $nomesMeses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "
 $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
 ?>
 
-<div id="backup-modal-backdrop" class="modal-backdrop fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden z-[1070]">
+<div id="backup-modal-backdrop" class="modal-backdrop fixed inset-0 bg-gray-600 bg-opacity-75 backdrop-blur-sm flex items-center justify-center hidden z-[1070]">
     <div class="modal-content-backup bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center transform transition-all scale-95 opacity-0">
       <h3 id="backup-modal-title" class="text-lg font-medium text-gray-900">Backup do Banco de Dados</h3>
       <div id="backup-modal-message" class="mt-2 text-sm text-gray-600">
@@ -51,14 +51,14 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
       <div class="progress-bar-container w-full bg-gray-200 rounded overflow-hidden my-4" id="backup-progress-bar-container" style="display: none;">
         <div class="progress-bar h-5 bg-blue-600 text-center leading-5 text-white text-xs transition-all duration-500 ease-linear" id="backup-progress-bar">0%</div>
       </div>
-      <div class="mt-4">
-        <button type="button" id="backup-modal-close-btn" class="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" style="display: none;">
-          Fechar
-        </button>
-         <a href="#" id="backup-download-link" class="hidden items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-            <i data-lucide="download" class="w-4 h-4 mr-2"></i> Baixar Backup
-        </a>
-      </div>
+      <div class="mt-6 flex flex-col sm:flex-row-reverse sm:justify-start gap-3">
+    <a href="#" id="backup-download-link" class="hidden w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+        <i data-lucide="download" class="w-4 h-4 mr-2"></i> Baixar Backup
+    </a>
+    <button type="button" id="backup-modal-close-btn" class="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" style="display: none;">
+      Fechar
+    </button>
+</div>
     </div>
 </div>
 
