@@ -1,6 +1,6 @@
-// src/js/gerenciar_colaboradores.js
-// Importa as funções necessárias do módulo utils.js
+// public/js/page_specific/gerenciar_colaboradores.js
 import { showToast } from "../modules/utils.js";
+import { initTooltips } from "../modules/tooltipManager.js"; // Importar initTooltips
 
 document.addEventListener("DOMContentLoaded", function () {
   console.log("[DEBUG] gerenciar_colaboradores.js: DOMContentLoaded");
@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const editForm = document.getElementById("edit-collaborator-form");
   const modalCloseButton = document.getElementById("modal-close-btn");
   const cancelEditButton = document.getElementById("cancel-edit-colab-button");
-  // const notify = showToast; // Usa a função showToast importada diretamente
 
   async function carregarColaboradoresNaTabela() {
     if (!collaboratorsTableBody) {
@@ -25,9 +24,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof lucide !== "undefined") lucide.createIcons();
 
     try {
-      const response = await fetch(`api/listar_colaboradores.php`); // Assumindo que está na raiz
+      const response = await fetch(`api/listar_colaboradores.php`);
       const data = await response.json();
-      collaboratorsTableBody.innerHTML = ""; // Limpa antes de popular ou mostrar erro
+      collaboratorsTableBody.innerHTML = "";
 
       if (data.success && data.colaboradores) {
         if (data.colaboradores.length === 0) {
@@ -44,40 +43,42 @@ document.addEventListener("DOMContentLoaded", function () {
 
           const statusCell = row.insertCell();
           statusCell.innerHTML = colab.ativo
-            ? '<span class="status-ativo">Ativo</span>'
-            : '<span class="status-inativo">Inativo</span>';
+            ? '<span class="status-ativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Ativo</span>' // Exemplo de estilização Tailwind para status
+            : '<span class="status-inativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inativo</span>'; // Exemplo
           statusCell.className = "px-6 py-4 whitespace-nowrap text-sm";
 
           const actionsCell = row.insertCell();
           actionsCell.className =
-            "px-6 py-4 whitespace-nowrap text-right text-sm font-medium"; // Ajustado para Tailwind
+            "px-6 py-4 whitespace-nowrap text-right text-sm font-medium";
 
-          // Botão Editar com classes Tailwind
           const editButton = document.createElement("button");
-          editButton.innerHTML =
-            '<i data-lucide="edit-3" class="w-4 h-4 mr-1"></i> Editar';
+          editButton.innerHTML = '<i data-lucide="edit-3" class="w-4 h-4"></i>'; // Removido texto para tooltip não sobrepor
           editButton.className =
-            "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 inline-flex items-center"; // Adicionadas classes Tailwind
-          editButton.title = "Editar Colaborador";
+            "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95";
+          editButton.setAttribute("data-tooltip-text", "Editar Colaborador"); // Adicionado tooltip
           editButton.onclick = () => abrirModalEdicao(colab);
           actionsCell.appendChild(editButton);
 
-          // Botão Alternar Status com classes Tailwind
           const toggleStatusButton = document.createElement("button");
           toggleStatusButton.innerHTML = colab.ativo
-            ? '<i data-lucide="toggle-left" class="w-4 h-4 mr-1"></i> Desativar'
-            : '<i data-lucide="toggle-right" class="w-4 h-4 mr-1"></i> Ativar';
-          toggleStatusButton.className = colab.ativo
-            ? "action-button warning btn-sm text-yellow-600 hover:text-yellow-900 inline-flex items-center" // Adicionadas classes Tailwind
-            : "action-button success btn-sm text-green-600 hover:text-green-900 inline-flex items-center"; // Adicionadas classes Tailwind
-          toggleStatusButton.title = colab.ativo
-            ? "Desativar Colaborador"
-            : "Ativar Colaborador";
+            ? '<i data-lucide="toggle-left" class="w-4 h-4"></i>' // Removido texto
+            : '<i data-lucide="toggle-right" class="w-4 h-4"></i>'; // Removido texto
+          toggleStatusButton.className = `action-button btn-sm p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95 ${
+            colab.ativo
+              ? "text-yellow-600 hover:text-yellow-900"
+              : "text-green-600 hover:text-green-900"
+          }`;
+          toggleStatusButton.setAttribute(
+            "data-tooltip-text",
+            colab.ativo ? "Desativar Colaborador" : "Ativar Colaborador"
+          ); // Adicionado tooltip
           toggleStatusButton.onclick = () =>
             alternarStatusColaborador(colab.id, !colab.ativo);
           actionsCell.appendChild(toggleStatusButton);
         });
+
         if (typeof lucide !== "undefined") lucide.createIcons();
+        initTooltips(); // Re-inicializar tooltips para os novos botões/ícones na tabela
       } else {
         const errorMessage = data.message || "Erro desconhecido";
         collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Erro ao carregar colaboradores: ${errorMessage}</td></tr>`;
@@ -110,27 +111,42 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("edit-email").value = colaborador.email || "";
     document.getElementById("edit-cargo").value = colaborador.cargo || "";
 
-    // O token CSRF no modal já é preenchido pelo PHP na página gerenciar_colaboradores.php
-    // <input type="hidden" id="edit-csrf-token" name="csrf_token" value="<?php echo htmlspecialchars($csrfTokenColabManage); ?>">
-    // Apenas garantindo que o input existe e tem o valor. Se precisar atualizar dinamicamente (improvável aqui):
-    // const csrfTokenPageInput = document.getElementById("csrf-token-colab-manage"); // Este ID deve estar no gerenciar_colaboradores.php
-    // if (csrfTokenPageInput) {
-    //   document.getElementById("edit-csrf-token").value = csrfTokenPageInput.value;
-    // }
+    const csrfTokenPageInput = document.getElementById(
+      "csrf-token-colab-manage"
+    );
+    if (csrfTokenPageInput) {
+      document.getElementById("edit-csrf-token").value =
+        csrfTokenPageInput.value;
+    }
 
-    editModal.classList.add("show");
-    // editModal.style.display = "flex"; // 'show' já faz isso via CSS
-    if (typeof lucide !== "undefined") lucide.createIcons();
+    editModal.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      // Para garantir que a transição ocorra
+      const modalContent = document.getElementById(
+        "edit-collaborator-modal-content"
+      );
+      if (modalContent) {
+        modalContent.classList.remove("opacity-0", "scale-95");
+        modalContent.classList.add("opacity-100", "scale-100");
+      }
+    });
+
+    if (typeof lucide !== "undefined") lucide.createIcons(); // Recriar ícones no modal se houver
+    initTooltips(); // Re-inicializar tooltips para elementos no modal
   }
 
   function fecharModalEdicao() {
     if (!editModal) return;
-    editModal.classList.remove("show");
-    // setTimeout(() => { // Não é mais necessário com display:flex no show
-    //   if (!editModal.classList.contains("show")) {
-    //     editModal.style.display = "none";
-    //   }
-    // }, 300);
+    const modalContent = document.getElementById(
+      "edit-collaborator-modal-content"
+    );
+    if (modalContent) {
+      modalContent.classList.add("opacity-0", "scale-95");
+      modalContent.classList.remove("opacity-100", "scale-100");
+    }
+    setTimeout(() => {
+      editModal.classList.add("hidden");
+    }, 300); // Tempo da transição
   }
 
   if (editForm) {
@@ -153,7 +169,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       try {
         const response = await fetch("api/atualizar_colaborador.php", {
-          // Assumindo que está na raiz
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dataPayload),
@@ -167,15 +182,13 @@ document.addEventListener("DOMContentLoaded", function () {
         if (result.success) {
           showToast(result.message || "Colaborador atualizado!", "success");
           fecharModalEdicao();
-          carregarColaboradoresNaTabela(); // Recarrega a tabela
-          // Atualiza o token CSRF na página principal se o backend enviar um novo
+          carregarColaboradoresNaTabela();
           if (result.csrf_token) {
             const csrfTokenPageInput = document.getElementById(
               "csrf-token-colab-manage"
-            ); // Este ID é do <input hidden> na página principal
+            );
             if (csrfTokenPageInput)
               csrfTokenPageInput.value = result.csrf_token;
-            // Atualiza também o token dentro do modal para a próxima submissão, se o modal não for recriado
             const csrfTokenModalInput =
               document.getElementById("edit-csrf-token");
             if (csrfTokenModalInput)
@@ -214,7 +227,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const csrfTokenPageInput = document.getElementById(
       "csrf-token-colab-manage"
-    ); // ID do token na página principal
+    );
     const csrfToken = csrfTokenPageInput ? csrfTokenPageInput.value : null;
 
     if (!csrfToken) {
@@ -225,12 +238,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const payload = {
       colab_id: colabId,
       novo_status: novoStatusBool ? 1 : 0,
-      csrf_token: csrfToken, // Envia o token da página principal
+      csrf_token: csrfToken,
     };
 
     try {
       const response = await fetch("api/alternar_status_colaborador.php", {
-        // Assumindo que está na raiz
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -243,8 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (result.success) {
         showToast(result.message || `Status alterado com sucesso!`, "success");
-        carregarColaboradoresNaTabela(); // Recarrega a tabela
-        // Atualiza o token CSRF na página principal se o backend enviar um novo
+        carregarColaboradoresNaTabela();
         if (result.csrf_token && csrfTokenPageInput) {
           csrfTokenPageInput.value = result.csrf_token;
         }
@@ -270,13 +281,11 @@ document.addEventListener("DOMContentLoaded", function () {
   if (editModal) {
     editModal.addEventListener("click", function (event) {
       if (event.target === editModal) {
-        // Fecha se clicar no overlay
         fecharModalEdicao();
       }
     });
   }
 
-  // Carregamento inicial da tabela
   if (collaboratorsTableBody) {
     carregarColaboradoresNaTabela();
   } else {

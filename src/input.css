@@ -1,2 +1,11 @@
 @import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@layer components {
+  .custom-tooltip-base {
+    /* Renomeado para evitar conflito com o do tooltipManager.js se não remover de lá */
+    @apply fixed z-[9999] px-2 py-1 text-xs font-medium text-white bg-gray-800 rounded-md shadow-sm opacity-0 invisible transition-all duration-200 ease-in-out pointer-events-none transform scale-90;
+  }
+  .custom-tooltip-base.visible {
+    @apply opacity-100 visible scale-100;
+  }
+}
