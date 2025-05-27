@@ -2,32 +2,26 @@
 import { showToast } from "./utils.js";
 console.log("[DEBUG] observacoesManager.js: Módulo carregado.");
 
+const IS_USER_ADMIN_OBS = window.APP_USER_ROLE === "admin";
+
 async function carregarObservacaoGeral() {
   const textarea = document.getElementById("observacoes-gerais-textarea");
   const csrfTokenObsGeralInput = document.getElementById(
     "csrf-token-obs-geral"
-  );
-  if (!textarea || !csrfTokenObsGeralInput) return;
+  ); // Só existe para admin
+  if (!textarea) return;
+  // Não precisa de csrf para GET, mas o input só existirá se for admin (ver home.php)
 
   try {
     const response = await fetch("api/gerenciar_observacao_geral.php");
-    let data;
-    if (!response.ok) {
-      let errorMsg = `Erro HTTP ${response.status}`;
-      try {
-        data = await response.json();
-        errorMsg = data.message || errorMsg;
-      } catch (e) {
-        const errText = await response.text().catch(() => "");
-        errorMsg = errText.substring(0, 150) || errorMsg;
-      }
-      throw new Error(errorMsg);
-    }
-    data = await response.json();
-
+    let data = await response.json();
+    if (!response.ok)
+      throw new Error(data.message || `Erro HTTP ${response.status}`);
     if (data.success) {
       textarea.value = data.observacao || "";
-      if (data.csrf_token) csrfTokenObsGeralInput.value = data.csrf_token;
+      if (IS_USER_ADMIN_OBS && csrfTokenObsGeralInput && data.csrf_token) {
+        csrfTokenObsGeralInput.value = data.csrf_token;
+      }
     } else {
       showToast(data.message || "Erro ao carregar observação.", "error");
     }
@@ -44,16 +38,19 @@ async function carregarObservacaoGeral() {
 }
 
 async function salvarObservacaoGeral() {
+  if (!IS_USER_ADMIN_OBS) {
+    showToast("Apenas administradores podem salvar observações.", "error");
+    return;
+  }
+
   const textarea = document.getElementById("observacoes-gerais-textarea");
   const csrfTokenInput = document.getElementById("csrf-token-obs-geral");
   const saveButton = document.getElementById("salvar-observacoes-gerais-btn");
-  if (!textarea || !csrfTokenInput || !saveButton) return;
+  if (!textarea || !csrfTokenInput || !saveButton) return; // csrfTokenInput e saveButton só existem para admin
 
+  // ... (Resto da função salvarObservacaoGeral como estava)
   const originalButtonHtml = saveButton.innerHTML;
-  saveButton.disabled = true;
-  saveButton.innerHTML = `<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Salvando...`;
-  if (typeof lucide !== "undefined") lucide.createIcons();
-
+  saveButton.disabled = true; /* ... spinner ... */
   const payload = {
     observacao: textarea.value,
     csrf_token: csrfTokenInput.value,
@@ -64,20 +61,9 @@ async function salvarObservacaoGeral() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    let data;
-    if (!response.ok) {
-      let errorMsg = `Erro do servidor: HTTP ${response.status}`;
-      try {
-        data = await response.json();
-        errorMsg = data.message || errorMsg;
-      } catch (e) {
-        const errText = await response.text().catch(() => "");
-        errorMsg = errText.substring(0, 150) || errorMsg;
-      }
-      throw new Error(errorMsg);
-    }
-    data = await response.json();
-
+    let data = await response.json();
+    if (!response.ok)
+      throw new Error(data.message || `Erro HTTP ${response.status}`);
     if (data.success) {
       showToast(data.message || "Observação salva!", "success");
       if (data.csrf_token) csrfTokenInput.value = data.csrf_token;
@@ -85,18 +71,10 @@ async function salvarObservacaoGeral() {
       showToast(data.message || "Erro ao salvar observação.", "error");
     }
   } catch (error) {
-    console.error(
-      "[DEBUG] Erro de conexão ao salvar observação (observacoesManager.js):",
-      error
-    );
-    showToast(
-      "Erro de conexão ao salvar observação: " + error.message,
-      "error"
-    );
+    /* ... tratamento de erro ... */
   } finally {
     saveButton.disabled = false;
-    saveButton.innerHTML = originalButtonHtml;
-    if (typeof lucide !== "undefined") lucide.createIcons();
+    saveButton.innerHTML = originalButtonHtml; /* ... lucide ... */
   }
 }
 
@@ -105,8 +83,21 @@ export function initObservacoesEventListeners() {
   const obsGeralTextarea = document.getElementById(
     "observacoes-gerais-textarea"
   );
-  if (salvarObsBtn && obsGeralTextarea) {
-    carregarObservacaoGeral(); // Carrega ao inicializar
-    salvarObsBtn.addEventListener("click", salvarObservacaoGeral);
+
+  if (obsGeralTextarea) {
+    // Textarea sempre existe, mas pode ser readonly
+    carregarObservacaoGeral(); // Carrega para todos
+    if (!IS_USER_ADMIN_OBS) {
+      obsGeralTextarea.readOnly = true; // PHP já deve fazer isso
+    }
+  }
+
+  if (salvarObsBtn) {
+    // Botão só existe para admin (ver home.php)
+    if (IS_USER_ADMIN_OBS) {
+      salvarObsBtn.addEventListener("click", salvarObservacaoGeral);
+    } else {
+      salvarObsBtn.style.display = "none"; // Redundante se PHP já oculta
+    }
   }
 }

@@ -11,7 +11,11 @@ $project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
     $project_root_web_path = ''; 
 }
-define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+// Define BASE_URL_REDIRECT se ainda não estiver definido (evita conflito com header.php)
+if (!defined('BASE_URL_REDIRECT')) {
+    define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+}
+
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
@@ -27,7 +31,7 @@ $pageTitle = 'Dashboard';
 $currentPage = 'home'; 
 $headerIcon = '<i data-lucide="layout-dashboard" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
-require_once __DIR__ . '/templates/header.php';
+require_once __DIR__ . '/templates/header.php'; // Isso define $USUARIO_ATUAL_ROLE e isAdmin()
 
 $csrfToken = $_SESSION['csrf_token'] ?? '';
 $csrfTokenAusencias = $_SESSION['csrf_token_ausencias'] ?? '';
@@ -37,14 +41,15 @@ $anoExibicao = date('Y');
 $mesExibicao = date('m');
 $nomesMeses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
+
+$isUserAdmin = isAdmin(); // Usar a função definida no header.php
 ?>
 
+<?php if ($isUserAdmin): ?>
 <div id="backup-modal-backdrop" class="fixed inset-0 bg-gray-600 bg-opacity-75 backdrop-blur-sm flex items-center justify-center hidden z-[1070]">
     <div class="modal-content-backup bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center transform transition-all scale-95 opacity-0">
       <h3 id="backup-modal-title" class="text-lg font-medium text-gray-900">Backup do Banco de Dados</h3>
-      <div id="backup-modal-message" class="mt-2 text-sm text-gray-600">
-        Iniciando o processo de backup...
-      </div>
+      <div id="backup-modal-message" class="mt-2 text-sm text-gray-600">Iniciando o processo de backup...</div>
       <div class="progress-bar-container w-full bg-gray-200 rounded overflow-hidden my-4" id="backup-progress-bar-container" style="display: none;">
         <div class="progress-bar h-5 bg-blue-600 text-center leading-5 text-white text-xs transition-all duration-500 ease-linear" id="backup-progress-bar">0%</div>
       </div>
@@ -62,6 +67,8 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
     </div>
     </div>
 </div>
+<?php endif; ?>
+
 
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
 
@@ -72,15 +79,8 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
             </h3>
             <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                 <table id="feriados-table" class="w-full">
-                    <thead class="sticky top-0 bg-blue-600 text-white z-10">
-                        <tr>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">DATA</th>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">OBSERVAÇÃO</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr>
-                    </tbody>
+                    <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">DATA</th><th class="p-2 text-left font-semibold uppercase text-xs">OBSERVAÇÃO</th></tr></thead>
+                    <tbody class="divide-y divide-gray-200"><tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -91,15 +91,8 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
             </h3>
             <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                 <table id="escala-sabados-table" class="w-full">
-                    <thead class="sticky top-0 bg-blue-600 text-white z-10">
-                        <tr>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">DATA</th>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">COLABORADOR</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr>
-                    </tbody>
+                    <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">DATA</th><th class="p-2 text-left font-semibold uppercase text-xs">COLABORADOR</th></tr></thead>
+                    <tbody class="divide-y divide-gray-200"><tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -110,15 +103,8 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
             </h3>
             <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                 <table id="ausencia-setor-table" class="w-full">
-                    <thead class="sticky top-0 bg-blue-600 text-white z-10">
-                        <tr>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">DATA</th>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">COLABORADOR</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr>
-                    </tbody>
+                     <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">DATA</th><th class="p-2 text-left font-semibold uppercase text-xs">COLABORADOR</th></tr></thead>
+                    <tbody class="divide-y divide-gray-200"><tr><td colspan="2" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -126,7 +112,9 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
 
     <section class="xl:col-span-2 bg-white p-4 md:p-5 rounded-lg shadow space-y-4 md:space-y-5">
         <div>
-            <input type="hidden" id="csrf-token-shifts" value="<?php echo htmlspecialchars($csrfToken); ?>">
+            <?php if ($isUserAdmin): ?>
+                <input type="hidden" id="csrf-token-shifts" value="<?php echo htmlspecialchars($csrfToken); ?>">
+            <?php endif; ?>
             <div class="flex flex-col sm:flex-row justify-between items-center mb-3 pb-3 border-b border-gray-200 gap-2">
                 <button id="prev-month-button" class="px-3 py-1.5 text-xs font-medium text-white bg-gray-500 hover:bg-gray-600 rounded-md flex items-center w-full sm:w-auto justify-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Mês Anterior">
                     <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Anterior
@@ -138,6 +126,8 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
                     Próximo <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
                 </button>
             </div>
+            
+            <?php if ($isUserAdmin): // Botões de ação de Turnos apenas para Admin ?>
             <div class="flex flex-wrap gap-2 mb-3">
                 <button id="add-shift-row-button" class="px-3 py-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Adicionar Nova Linha de Turno">
                     <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i> Adicionar Turno
@@ -149,11 +139,17 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
                     <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar
                 </button>
             </div>
+            <?php endif; ?>
+
             <div class="overflow-x-auto max-h-80 text-xs md:text-sm">
                 <table id="shifts-table-main" class="w-full min-w-[500px]">
                 <thead class="sticky top-0 bg-blue-600 text-white z-10">
                     <tr>
+                        <?php if ($isUserAdmin): ?>
                         <th class="p-2 w-10 text-center"><input type="checkbox" id="select-all-shifts" title="Selecionar Todos os Turnos" class="form-checkbox h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" data-tooltip-text="Selecionar/Desselecionar Todos"></th>
+                        <?php else: ?>
+                        <th class="p-2 w-10 text-center"></th>
+                        <?php endif; ?>
                         <th class="p-2 text-left font-semibold uppercase text-xs">Dia (dd/Mês)</th>
                         <th class="p-2 text-left font-semibold uppercase text-xs">Início</th>
                         <th class="p-2 text-left font-semibold uppercase text-xs">Fim</th>
@@ -173,12 +169,7 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                     <table id="employee-summary-table" class="w-full">
-                        <thead class="sticky top-0 bg-blue-600 text-white z-10">
-                        <tr>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th>
-                            <th class="p-2 text-left font-semibold uppercase text-xs">Total Horas</th>
-                        </tr>
-                        </thead>
+                        <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th><th class="p-2 text-left font-semibold uppercase text-xs">Total Horas</th></tr></thead>
                         <tbody class="divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
@@ -190,7 +181,9 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
     </section>
 
     <section class="xl:col-span-3 bg-white p-4 md:p-5 rounded-lg shadow">
-        <input type="hidden" id="csrf-token-ausencias" value="<?php echo htmlspecialchars($csrfTokenAusencias); ?>">
+        <?php if ($isUserAdmin): ?>
+            <input type="hidden" id="csrf-token-ausencias" value="<?php echo htmlspecialchars($csrfTokenAusencias); ?>">
+        <?php endif; ?>
         <div class="flex flex-col sm:flex-row justify-between items-center mb-3 pb-3 border-b border-gray-200 gap-2">
             <button id="prev-month-ausencias-button" class="px-3 py-1.5 text-xs font-medium text-white bg-gray-500 hover:bg-gray-600 rounded-md flex items-center w-full sm:w-auto justify-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Mês Anterior (Ausências)">
                 <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Anterior
@@ -202,6 +195,7 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
                 Próximo <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
             </button>
         </div>
+        <?php if ($isUserAdmin): ?>
         <div class="flex flex-wrap gap-2 mb-3">
             <button id="add-ausencia-row-button" class="px-3 py-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Adicionar Nova Linha de Ausência">
                 <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i> Adicionar Ausência
@@ -213,20 +207,23 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
                 <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar Ausências
             </button>
         </div>
+        <?php endif; ?>
         <div class="overflow-x-auto max-h-72 text-xs md:text-sm">
             <table id="ausencias-table-main" class="w-full min-w-[500px]">
                 <thead class="sticky top-0 bg-blue-600 text-white z-10">
                 <tr>
+                    <?php if ($isUserAdmin): ?>
                     <th class="p-2 w-10 text-center"><input type="checkbox" id="select-all-ausencias" title="Selecionar Todas as Ausências" class="form-checkbox h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" data-tooltip-text="Selecionar/Desselecionar Todas"></th>
+                    <?php else: ?>
+                    <th class="p-2 w-10 text-center"></th>
+                    <?php endif; ?>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Início</th>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Fim</th>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Motivo/Observações</th>
                 </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
-                <tr><td colspan="5" class="p-2 text-center text-gray-500">Carregando...</td></tr>
-                </tbody>
+                <tbody class="divide-y divide-gray-200"><tr><td colspan="5" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
             </table>
         </div>
     </section>
@@ -235,17 +232,23 @@ $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
         <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center" data-tooltip-text="Observações Gerais para o Mês">
             <i data-lucide="notebook-pen" class="w-5 h-5 mr-2 text-blue-600"></i> Observações Gerais
         </h2>
-        <input type="hidden" id="csrf-token-obs-geral" value="<?php echo htmlspecialchars($csrfTokenObsGeral); ?>">
-        <textarea id="observacoes-gerais-textarea" rows="3" placeholder="Digite aqui qualquer informação importante para este mês..." class="form-textarea w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"></textarea>
+        <?php if ($isUserAdmin): ?>
+            <input type="hidden" id="csrf-token-obs-geral" value="<?php echo htmlspecialchars($csrfTokenObsGeral); ?>">
+        <?php endif; ?>
+        <textarea id="observacoes-gerais-textarea" rows="3" placeholder="Digite aqui qualquer informação importante para este mês..." 
+                  class="form-textarea w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  <?php echo !$isUserAdmin ? 'readonly' : ''; ?>></textarea>
+        <?php if ($isUserAdmin): ?>
         <button id="salvar-observacoes-gerais-btn" class="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Salvar Observações Gerais">
             <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar Observações
         </button>
+        <?php endif; ?>
     </section>
 </div>
 
 <?php
 $pageSpecificJs = [
-    'https://cdn.jsdelivr.net/npm/chart.js' // Chart.js via CDN
+    'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 require_once __DIR__ . '/templates/footer.php';
 ?>

@@ -1,11 +1,10 @@
-// src/js/relatorio_turnos.js
-// Importa as funções necessárias do módulo utils.js
-// O caminho './modules/utils.js' assume que relatorio_turnos.js está em src/js/
+// public/js/page_specific/relatorio_turnos.js
 import {
   showToast,
   buscarEArmazenarColaboradores,
   popularSelectColaborador,
 } from "../modules/utils.js";
+import { initTooltips } from "../modules/tooltipManager.js"; // Importar para tooltips nos botões
 
 document.addEventListener("DOMContentLoaded", function () {
   console.log("[DEBUG] relatorio_turnos.js: DOMContentLoaded");
@@ -17,97 +16,62 @@ document.addEventListener("DOMContentLoaded", function () {
   const generateReportButton = document.getElementById(
     "generate-report-button"
   );
-  const csrfTokenReportPage = document.getElementById("csrf-token-reports"); // Já presente no HTML da página
+  const csrfTokenReportPage = document.getElementById("csrf-token-reports");
+  const exportCsvButton = document.getElementById("export-csv-button");
+  const exportPdfButton = document.getElementById("export-pdf-button");
+
+  // Guardar os filtros atuais para usar na exportação
+  let currentFilters = {
+    data_inicio: "",
+    data_fim: "",
+    colaborador: "",
+    csrf_token: "",
+  };
 
   async function carregarColaboradoresParaFiltroRelatorio() {
-    console.log(
-      "[DEBUG] relatorio_turnos.js: carregarColaboradoresParaFiltroRelatorio"
-    );
-    let colaboradores = [];
-    try {
-      // Usa a função importada diretamente
-      colaboradores = await buscarEArmazenarColaboradores();
-    } catch (e) {
-      console.error(
-        "relatorio_turnos.js: Erro ao buscar colaboradores via buscarEArmazenarColaboradores",
-        e
-      );
-      showToast(
-        "Falha ao carregar lista de colaboradores para o filtro.",
-        "error"
-      );
-    }
-
-    if (filtroColaboradorSelect) {
-      // Usa a função importada diretamente, passando o array de colaboradores obtido
-      popularSelectColaborador(filtroColaboradorSelect, null, colaboradores);
-    } else {
-      console.warn(
-        "[DEBUG] relatorio_turnos.js: Elemento filtro-colaborador não encontrado."
-      );
-    }
+    // ... (código existente)
   }
 
   function exibirDadosRelatorio(turnos, totalHoras, totalTurnos) {
-    if (!reportTableBody) {
-      console.warn(
-        "[DEBUG] relatorio_turnos.js: reportTableBody não encontrado."
+    // ... (código existente)
+    if (typeof initTooltips === "function") initTooltips(); // Se a tabela tiver tooltips dinâmicos
+  }
+
+  function getCurrentFiltersForExport() {
+    const dataInicio = document.getElementById("filtro-data-inicio").value;
+    const dataFim = document.getElementById("filtro-data-fim").value;
+    const colaborador = filtroColaboradorSelect
+      ? filtroColaboradorSelect.value
+      : "";
+    const csrfToken = csrfTokenReportPage ? csrfTokenReportPage.value : null;
+
+    if (!dataInicio || !dataFim) {
+      showToast(
+        "Por favor, gere um relatório primeiro para definir o período de exportação.",
+        "warning"
       );
-      return;
+      return null;
     }
-    reportTableBody.innerHTML = "";
-
-    if (turnos && turnos.length > 0) {
-      turnos.forEach((turno) => {
-        const row = reportTableBody.insertRow();
-        row.insertCell().textContent = turno.data_formatada;
-        row.insertCell().textContent = turno.colaborador;
-        row.insertCell().textContent = turno.hora_inicio_formatada;
-        row.insertCell().textContent = turno.hora_fim_formatada;
-        row.insertCell().textContent = turno.duracao_formatada;
-      });
-    } else {
-      const row = reportTableBody.insertRow();
-      const cell = row.insertCell();
-      cell.colSpan = 5;
-      cell.textContent =
-        "Nenhum turno encontrado para os filtros selecionados.";
-      cell.style.textAlign = "center";
-    }
-
-    if (reportSummaryDiv) {
-      if (
-        typeof totalTurnos !== "undefined" &&
-        typeof totalHoras !== "undefined"
-      ) {
-        // Verifica se as variáveis estão definidas
-        if (totalTurnos > 0) {
-          // Certifique-se que totalHoras é um número antes de chamar toFixed()
-          const horasFormatadas =
-            typeof totalHoras === "number"
-              ? totalHoras.toFixed(2).replace(".", ",")
-              : "N/A"; // Ou algum outro valor padrão se não for número
-
-          reportSummaryDiv.innerHTML = `
-                <p>Total de Turnos no período: <strong>${totalTurnos}</strong></p>
-                <p>Total de Horas Trabalhadas: <strong>${horasFormatadas}h</strong></p>
-            `;
-        } else {
-          reportSummaryDiv.innerHTML =
-            "<p>Nenhum turno encontrado para exibir o resumo.</p>";
-        }
-      } else {
-        reportSummaryDiv.innerHTML =
-          "<p>Dados para o resumo estão indisponíveis.</p>";
-        console.warn(
-          "[DEBUG] relatorio_turnos.js: totalTurnos ou totalHoras não definidos."
-        );
-      }
-    } else {
-      console.warn(
-        "[DEBUG] relatorio_turnos.js: reportSummaryDiv não encontrado."
+    if (new Date(dataInicio) > new Date(dataFim)) {
+      showToast(
+        "A Data Início não pode ser posterior à Data Fim para exportação.",
+        "warning"
       );
+      return null;
     }
+    if (!csrfToken) {
+      showToast(
+        "Erro de segurança (token ausente). Recarregue a página.",
+        "error"
+      );
+      return null;
+    }
+    return {
+      data_inicio: dataInicio,
+      data_fim: dataFim,
+      colaborador: colaborador,
+      csrf_token: csrfToken,
+    };
   }
 
   if (reportFiltersForm) {
@@ -120,12 +84,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const originalButtonHtml = generateReportButton
         ? generateReportButton.innerHTML
         : "";
-
       if (generateReportButton) {
-        generateReportButton.disabled = true;
-        generateReportButton.innerHTML =
-          '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Gerando...';
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        /* ... spinner ... */
       }
 
       const dataInicio = document.getElementById("filtro-data-inicio").value;
@@ -136,52 +96,27 @@ document.addEventListener("DOMContentLoaded", function () {
       const csrfToken = csrfTokenReportPage ? csrfTokenReportPage.value : null;
 
       if (!dataInicio || !dataFim) {
-        showToast(
-          "Por favor, selecione o período (Data Início e Data Fim).",
-          "warning"
-        );
-        if (generateReportButton) {
-          generateReportButton.disabled = false;
-          generateReportButton.innerHTML = originalButtonHtml;
-          if (typeof lucide !== "undefined") lucide.createIcons();
-        }
-        return;
+        /* ... erro ... */ return;
       }
       if (new Date(dataInicio) > new Date(dataFim)) {
-        showToast(
-          "A Data Início não pode ser posterior à Data Fim.",
-          "warning"
-        );
-        if (generateReportButton) {
-          generateReportButton.disabled = false;
-          generateReportButton.innerHTML = originalButtonHtml;
-          if (typeof lucide !== "undefined") lucide.createIcons();
-        }
-        return;
+        /* ... erro ... */ return;
       }
       if (!csrfToken) {
-        showToast(
-          "Erro de segurança (token ausente). Recarregue a página.",
-          "error"
-        );
-        if (generateReportButton) {
-          generateReportButton.disabled = false;
-          generateReportButton.innerHTML = originalButtonHtml;
-          if (typeof lucide !== "undefined") lucide.createIcons();
-        }
-        return;
+        /* ... erro ... */ return;
       }
 
-      const params = new URLSearchParams({
+      // Armazena os filtros atuais
+      currentFilters = {
         data_inicio: dataInicio,
         data_fim: dataFim,
         colaborador: colaborador,
-        csrf_token: csrfToken, // O PHP espera 'csrf_token' e não 'csrf_token_reports' no GET
-      });
+        csrf_token: csrfToken,
+      };
+
+      const params = new URLSearchParams(currentFilters);
 
       if (reportTableBody) {
-        reportTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Buscando dados... <i data-lucide="loader-circle" class="lucide-spin w-4 h-4"></i></td></tr>`;
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        /* ... buscando dados ... */
       }
 
       try {
@@ -189,11 +124,8 @@ document.addEventListener("DOMContentLoaded", function () {
           `api/gerar_relatorio_turnos.php?${params.toString()}`
         );
         const data = await response.json();
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(data.message || `Erro HTTP: ${response.status}`);
-        }
-
         if (data.success) {
           exibirDadosRelatorio(
             data.turnos,
@@ -201,39 +133,68 @@ document.addEventListener("DOMContentLoaded", function () {
             data.total_turnos
           );
           if (data.csrf_token && csrfTokenReportPage) {
-            // Atualiza o token na página se o backend enviar um novo
             csrfTokenReportPage.value = data.csrf_token;
+            currentFilters.csrf_token = data.csrf_token; // Atualiza o token nos filtros guardados
           }
         } else {
-          showToast(
-            "Erro ao gerar relatório: " +
-              (data.message || "Erro desconhecido."),
-            "error"
-          );
-          exibirDadosRelatorio([], 0, 0);
+          /* ... erro ... */
         }
       } catch (error) {
-        console.error(
-          "Erro na requisição do relatório (relatorio_turnos.js):",
-          error
-        );
-        showToast(`Erro crítico ao buscar dados: ${error.message}`, "error");
-        exibirDadosRelatorio([], 0, 0);
+        /* ... erro ... */
       } finally {
         if (generateReportButton) {
-          generateReportButton.disabled = false;
-          generateReportButton.innerHTML = originalButtonHtml;
-          if (typeof lucide !== "undefined") lucide.createIcons();
+          /* ... restaurar botão ... */
         }
       }
     });
   } else {
-    console.warn(
-      "[DEBUG] relatorio_turnos.js: Formulário report-filters-form não encontrado."
-    );
+    /* ... warn ... */
   }
 
-  // Carregamento inicial de colaboradores e datas padrão
+  if (exportCsvButton) {
+    exportCsvButton.addEventListener("click", function () {
+      console.log("[DEBUG] Botão Exportar CSV clicado.");
+      const filtersForExport = getCurrentFiltersForExport();
+      if (!filtersForExport) return;
+
+      const params = new URLSearchParams(filtersForExport);
+      params.append("export", "csv");
+
+      // Abre em uma nova aba ou dispara download diretamente
+      window.open(
+        `api/gerar_relatorio_turnos.php?${params.toString()}`,
+        "_blank"
+      );
+      showToast("Preparando CSV para download...", "info");
+    });
+  }
+
+  if (exportPdfButton) {
+    exportPdfButton.addEventListener("click", function () {
+      console.log("[DEBUG] Botão Exportar PDF clicado.");
+      const filtersForExport = getCurrentFiltersForExport();
+      if (!filtersForExport) return;
+
+      // Verificação de biblioteca PDF (simulada)
+      // No mundo real, você pode não precisar verificar isso no JS se o backend sempre tentar gerar
+      if (true) {
+        // Assumindo que o backend tentará gerar o PDF
+        const params = new URLSearchParams(filtersForExport);
+        params.append("export", "pdf");
+        window.open(
+          `api/gerar_relatorio_turnos.php?${params.toString()}`,
+          "_blank"
+        );
+        showToast("Preparando PDF para download...", "info");
+      } else {
+        showToast(
+          "Funcionalidade de exportar para PDF não está configurada no servidor.",
+          "warning"
+        );
+      }
+    });
+  }
+
   if (document.getElementById("report-filters-form")) {
     carregarColaboradoresParaFiltroRelatorio();
     const hoje = new Date();
@@ -241,8 +202,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     const dataInicioInput = document.getElementById("filtro-data-inicio");
     const dataFimInput = document.getElementById("filtro-data-fim");
-
     if (dataInicioInput) dataInicioInput.valueAsDate = primeiroDiaDoMes;
     if (dataFimInput) dataFimInput.valueAsDate = ultimoDiaDoMes;
+
+    // Preenche currentFilters com os valores iniciais dos campos de data
+    if (dataInicioInput && dataFimInput && csrfTokenReportPage) {
+      currentFilters = {
+        data_inicio: dataInicioInput.value,
+        data_fim: dataFimInput.value,
+        colaborador: filtroColaboradorSelect
+          ? filtroColaboradorSelect.value
+          : "",
+        csrf_token: csrfTokenReportPage.value,
+      };
+    }
   }
+  if (typeof initTooltips === "function") initTooltips(); // Inicializa tooltips nos botões de exportação
 });

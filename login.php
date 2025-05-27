@@ -1,18 +1,16 @@
 <?php
 // login.php 
 
-// Caminhos atualizados
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/conexao.php'; 
 require_once __DIR__ . '/lib/LogHelper.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
-    session_start(); // Deve ser chamado antes de qualquer output ou uso de $_SESSION
+    session_start();
 }
 
 $logger = new LogHelper($conexao); 
 
-// SITE_URL já definido em config.php
 $home_page_url = SITE_URL . '/home.php';
 $login_page_url = SITE_URL . '/index.html';
 
@@ -45,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erro_login)) {
-        $sql = "SELECT TOP 1 id, usuario, senha, nome_completo, email FROM usuarios WHERE (usuario = ? OR email = ?) AND ativo = 1";
+        // Adicionada a coluna 'role' na query
+        $sql = "SELECT TOP 1 id, usuario, senha, nome_completo, email, role FROM usuarios WHERE (usuario = ? OR email = ?) AND ativo = 1";
         
         $params = [$usuario_digitado, $usuario_digitado];
         $stmt = sqlsrv_query($conexao, $sql, $params); 
@@ -60,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db_senha_hash = $row['senha'];
                 $db_nome_completo = $row['nome_completo'];
                 $db_email = $row['email'];
+                $db_role = $row['role']; // Captura o role
 
                 if (password_verify($senha_digitada, $db_senha_hash)) {
                     session_regenerate_id(true);
@@ -67,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['usuario_nome'] = $db_usuario;
                     $_SESSION['usuario_nome_completo'] = $db_nome_completo;
                     $_SESSION['usuario_email'] = $db_email;
+                    $_SESSION['usuario_role'] = $db_role; // Armazena o role na sessão
                     $_SESSION['logado'] = true;
                     
                     // Gerar todos os tokens CSRF necessários para a sessão
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
 
 
-                    $logger->log('AUTH_SUCCESS', 'Login bem-sucedido (SQLSRV).', ['usuario_id' => $db_id, 'usuario' => $db_usuario]);
+                    $logger->log('AUTH_SUCCESS', 'Login bem-sucedido (SQLSRV).', ['usuario_id' => $db_id, 'usuario' => $db_usuario, 'role' => $db_role]);
                     fecharConexaoLoginSQLSRVRedirect($conexao, $home_page_url);
                 } else {
                     $erro_login = "Usuário ou senha incorretos.";

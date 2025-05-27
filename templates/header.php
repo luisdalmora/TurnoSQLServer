@@ -13,13 +13,25 @@ if (strpos($project_path_on_server, '/') !== 0) {
 }
 $project_base_path = rtrim($project_path_on_server, '/');
 
-define('BASE_URL', rtrim($protocol . $host . $project_base_path, '/'));
+// Garante que BASE_URL é definida apenas uma vez
+if (!defined('BASE_URL')) {
+    define('BASE_URL', rtrim($protocol . $host . $project_base_path, '/'));
+}
 
 require_once __DIR__ . '/../config/config.php';
 
 $pageTitle = $pageTitle ?? 'Sim Posto'; 
 $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
 $csrfTokenBackup = $_SESSION['csrf_token_backup'] ?? ''; 
+
+// Variável para verificação de permissão e função auxiliar
+$USUARIO_ATUAL_ROLE = $_SESSION['usuario_role'] ?? 'user'; // Default para 'user' se não estiver setado
+
+if (!function_exists('isAdmin')) {
+    function isAdmin() {
+        return isset($_SESSION['usuario_role']) && $_SESSION['usuario_role'] === 'admin';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -44,45 +56,21 @@ $csrfTokenBackup = $_SESSION['csrf_token_backup'] ?? '';
     }
     ?>
     <style>
-        /* Estilo inicial para fade-in da página */
-        .body-fade-in {
-            opacity: 0;
-            transition: opacity 0.4s ease-in-out; /* Duração e timing da animação */
-        }
-        .body-visible {
-            opacity: 1;
-        }
-
-        /* Estilos para o modal de edição (movido de gerenciar_colaboradores.php para ser global se necessário, ou mantenha específico) */
-        /* Se for apenas para colaboradores, pode ficar no CSS daquela página ou Tailwind no HTML */
-        #edit-collaborator-modal.hidden {
-            display: none;
-        }
-         #edit-collaborator-modal {
-            display: flex; /* Para centralizar com items-center justify-center */
-        }
-        #edit-collaborator-modal-content {
-            transition-property: transform, opacity;
-            transition-duration: 300ms; /* Ajuste conforme preferência */
-            transition-timing-function: ease-in-out;
-        }
-
-        /* Para o modal de backup (da home.php) */
-        #backup-modal-backdrop.hidden {
-            display: none;
-        }
-        #backup-modal-backdrop {
-             display: flex; /* Para centralizar com items-center justify-center */
-        }
-        .modal-content-backup { /* Nome da classe no HTML da home.php */
+        .body-fade-in { opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .body-visible { opacity: 1; }
+        #edit-collaborator-modal.hidden, #backup-modal-backdrop.hidden { display: none; }
+        #edit-collaborator-modal, #backup-modal-backdrop { display: flex; }
+        #edit-collaborator-modal-content, .modal-content-backup {
             transition-property: transform, opacity;
             transition-duration: 300ms;
             transition-timing-function: ease-in-out;
         }
-
     </style>
+    <script>
+        window.APP_USER_ROLE = "<?php echo htmlspecialchars($USUARIO_ATUAL_ROLE, ENT_QUOTES, 'UTF-8'); ?>";
+    </script>
 </head>
-<body class="bg-gray-100 font-poppins text-gray-700 body-fade-in"> 
+<body class="bg-gray-100 font-poppins text-gray-700 body-fade-in">
     <div class="flex h-screen overflow-hidden">
         <?php
         $currentPage = $currentPage ?? ''; 
@@ -95,12 +83,12 @@ $csrfTokenBackup = $_SESSION['csrf_token_backup'] ?? '';
                     <h1 class="text-md md:text-lg font-semibold text-gray-800"><?php echo htmlspecialchars($pageTitle); ?></h1>
                 </div>
                 <div id="user-info" class="flex items-center text-sm font-medium text-gray-700">
-                  Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?>
+                  Olá, <?php echo htmlspecialchars($nomeUsuarioLogado); ?> (<?php echo htmlspecialchars(ucfirst($USUARIO_ATUAL_ROLE)); ?>)
                   <i data-lucide="circle-user-round" class="w-5 h-5 md:w-6 md:h-6 ml-2 text-blue-600" data-tooltip-text="Usuário Logado: <?php echo htmlspecialchars($nomeUsuarioLogado); ?>"></i>
                 </div>
             </header>
             <main class="flex-grow p-4 md:p-6">
 <?php
-// O restante do conteúdo da página será incluído aqui
-// A tag <body> e <html> são fechadas no footer.php
+// templates/sidebar.php
+// ...
 ?>

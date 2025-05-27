@@ -11,7 +11,10 @@ $project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
     $project_root_web_path = '';
 }
-define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+if (!defined('BASE_URL_REDIRECT')) {
+    define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+}
+
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
@@ -23,16 +26,29 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     exit;
 }
 
+require_once __DIR__ . '/templates/header.php'; // Define isAdmin()
+
+// Verificação de permissão para acessar a página de relatórios
+// Descomente e ajuste se apenas admins puderem ver relatórios
+/*
+if (!isAdmin()) {
+    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Você não tem permissão para acessar esta página.'];
+    header('Location: ' . BASE_URL . '/home.php');
+    exit;
+}
+*/
+
 $pageTitle = 'Relatório de Turnos Trabalhados';
 $currentPage = 'relatorios';
 $headerIcon = '<i data-lucide="file-pie-chart" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
-require_once __DIR__ . '/templates/header.php';
 
-// Token CSRF para esta página de relatórios
 $csrfTokenReports = $_SESSION['csrf_token_reports'] ?? '';
-if (empty($csrfTokenReports) && isset($_SESSION['csrf_token_reports'])) {
+if (empty($csrfTokenReports) && isset($_SESSION['csrf_token_reports'])) { // Garante que o token existe
     $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
+    $csrfTokenReports = $_SESSION['csrf_token_reports'];
+} elseif (empty($csrfTokenReports)) { // Se a chave de sessão nem existia
+     $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
     $csrfTokenReports = $_SESSION['csrf_token_reports'];
 }
 ?>
@@ -59,7 +75,9 @@ if (empty($csrfTokenReports) && isset($_SESSION['csrf_token_reports'])) {
                 </select>
         </div>
         <div class="sm:col-span-2 lg:col-span-1">
-            <button type="submit" id="generate-report-button" class="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <button type="submit" id="generate-report-button" 
+                    class="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-150 ease-in-out hover:scale-105 active:scale-95"
+                    data-tooltip-text="Gerar relatório com os filtros selecionados">
                 <i data-lucide="search" class="w-4 h-4 mr-2"></i> Gerar Relatório
             </button>
         </div>
@@ -67,9 +85,23 @@ if (empty($csrfTokenReports) && isset($_SESSION['csrf_token_reports'])) {
 </section>
 
 <section class="mt-6 bg-white p-4 md:p-6 rounded-lg shadow">
-    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-        <i data-lucide="list-checks" class="w-5 h-5 mr-2 text-blue-600"></i> Resultado do Relatório
-    </h2>
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+            <i data-lucide="list-checks" class="w-5 h-5 mr-2 text-blue-600"></i> Resultado do Relatório
+        </h2>
+        <div class="flex gap-2 mt-3 sm:mt-0">
+            <button id="export-csv-button" 
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95"
+                    data-tooltip-text="Exportar dados para CSV">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-1.5"></i> Exportar CSV
+            </button>
+            <button id="export-pdf-button" 
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95"
+                    data-tooltip-text="Exportar dados para PDF (requer biblioteca)">
+                <i data-lucide="file-text" class="w-4 h-4 mr-1.5"></i> Exportar PDF
+            </button>
+        </div>
+    </div>
     <div id="report-summary" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
         <p>Utilize os filtros acima e clique em "Gerar Relatório".</p>
     </div>

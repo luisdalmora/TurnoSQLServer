@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/conexao.php';
 require_once __DIR__ . '/../lib/LogHelper.php';
+require_once __DIR__ . '/api_helpers.php'; 
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -11,51 +12,21 @@ if (session_status() == PHP_SESSION_NONE) {
 $logger = new LogHelper($conexao);
 header('Content-Type: application/json');
 
-function fecharConexaoApiESair($conexaoSqlsrv, $jsonData) {
-    if (isset($conexaoSqlsrv) && $conexaoSqlsrv) {
-        sqlsrv_close($conexaoSqlsrv);
-    }
-    echo json_encode($jsonData);
-    exit;
-}
-
 $csrfTokenSessionKey = 'csrf_token_scripts_manage';
 $novoCsrfTokenParaCliente = null;
+$userId = $_SESSION['usuario_id'] ?? null;
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
-        fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Acesso negado. Sessão inválida.']);
-    }
     $input = json_decode(file_get_contents('php://input'), true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        $logger->log('ERROR', 'JSON de entrada inválido (POST api_scripts).', ['user_id' => $_SESSION['usuario_id'] ?? null, 'json_error' => json_last_error_msg()]);
+        $logger->log('ERROR', 'JSON de entrada inválido (POST api_scripts).', ['user_id' => $userId, 'json_error' => json_last_error_msg()]);
         fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Requisição inválida (JSON).']);
     }
-    if (!isset($input['csrf_token']) || !isset($_SESSION[$csrfTokenSessionKey]) || !hash_equals($_SESSION[$csrfTokenSessionKey], $input['csrf_token'])) {
-        $logger->log('SECURITY_WARNING', 'Falha CSRF token (POST api_scripts).', ['user_id' => $_SESSION['usuario_id'] ?? null]);
-        fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Erro de segurança. Recarregue a página.']);
-    }
-} else if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
-        fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Acesso negado.']);
-    }
-} else {
-    http_response_code(405); 
-    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Método não suportado.']);
-}
 
-if(isset($_SESSION[$csrfTokenSessionKey])) {
-    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
-    $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
-} else { // Fallback se a chave de sessão não existir por algum motivo
-    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
-    $novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
-    $logger->log('WARNING', 'Chave CSRF para api_scripts não existia na sessão e foi recriada.', ['user_id' => $_SESSION['usuario_id'] ?? null]);
-}
-$userId = $_SESSION['usuario_id'];
+    checkAdminApi($conexao, $logger, $csrfTokenSessionKey, $novoCsrfTokenParaCliente);
+    verifyCsrfTokenApi($input, $csrfTokenSessionKey, $conexao, $logger, $novoCsrfTokenParaCliente);
 
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $input['action'] ?? ($input['script_id'] ? 'atualizar' : 'salvar');
 
     if ($acao === 'salvar' || $acao === 'atualizar') {
@@ -71,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "UPDATE scripts_armazenados SET titulo = ?, conteudo = ?, data_atualizacao = GETDATE() WHERE id = ? AND criado_por_usuario_id = ?";
             $params = [$titulo, $conteudo, $script_id, $userId];
         } else {
-            $sql = "INSERT INTO scripts_armazenados (titulo, conteudo, criado_por_usuario_id) VALUES (?, ?, ?)";
+            $sql = "INSERT INTO scripts_armazenados (titulo, conteudo, criado_por_usuario_id, data_atualizacao) VALUES (?, ?, ?, GETDATE())";
             $params = [$titulo, $conteudo, $userId];
         }
         
@@ -80,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt) {
             $rows_affected = sqlsrv_rows_affected($stmt);
             sqlsrv_free_stmt($stmt);
-            if ($rows_affected > 0 || ($acao === 'atualizar' && $rows_affected === 0)) { 
+            if ($rows_affected > 0 || ($acao === 'atualizar' && $rows_affected === 0 && sqlsrv_errors() === null) ) { // Para update, 0 rows pode ser ok se nada mudou
                  $logger->log('INFO', "Script " . ($script_id ? "atualizado (ID: $script_id)" : "salvo") . " com sucesso.", ['user_id' => $userId, 'titulo' => $titulo]);
                 fecharConexaoApiESair($conexao, ['success' => true, 'message' => 'Script salvo com sucesso!', 'csrf_token' => $novoCsrfTokenParaCliente]);
             } else if ($rows_affected === false ) { 
@@ -125,10 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Ação POST desconhecida.', 'csrf_token' => $novoCsrfTokenParaCliente]);
     }
+
 } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    handleGetBase($csrfTokenSessionKey, $novoCsrfTokenParaCliente, $conexao);
+    
     $termoPesquisa = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-    $sql = "SELECT id, titulo, conteudo, FORMAT(data_criacao, 'dd/MM/yyyy HH:mm') AS data_criacao_fmt 
+    $sql = "SELECT id, titulo, conteudo, FORMAT(data_criacao, 'dd/MM/yyyy HH:mm') AS data_criacao_fmt, FORMAT(data_atualizacao, 'dd/MM/yyyy HH:mm') AS data_atualizacao_fmt 
             FROM scripts_armazenados 
             WHERE criado_por_usuario_id = ?";
     $params = [$userId];
@@ -154,6 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     sqlsrv_free_stmt($stmt);
     fecharConexaoApiESair($conexao, ['success' => true, 'scripts' => $scripts, 'csrf_token' => $novoCsrfTokenParaCliente]);
-}
 
-fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Requisição inválida.', 'csrf_token' => $novoCsrfTokenParaCliente]);
+} else {
+    http_response_code(405);
+    $logger->log('WARNING', 'Método HTTP não suportado em api_scripts.', ['method' => $_SERVER['REQUEST_METHOD'] ?? 'N/A', 'user_id' => $userId]);
+    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Método não suportado.']);
+}

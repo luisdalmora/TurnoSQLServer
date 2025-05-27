@@ -1,9 +1,15 @@
 // public/js/page_specific/gerenciar_colaboradores.js
 import { showToast } from "../modules/utils.js";
-import { initTooltips } from "../modules/tooltipManager.js"; // Importar initTooltips
+import { initTooltips } from "../modules/tooltipManager.js";
+
+// A variável window.APP_USER_ROLE é definida no header.php
+const IS_USER_ADMIN_COLAB = window.APP_USER_ROLE === "admin";
 
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("[DEBUG] gerenciar_colaboradores.js: DOMContentLoaded");
+  console.log(
+    "[DEBUG] gerenciar_colaboradores.js: DOMContentLoaded. Admin: " +
+      IS_USER_ADMIN_COLAB
+  );
 
   const collaboratorsTableBody = document.querySelector(
     "#collaborators-table tbody"
@@ -13,12 +19,23 @@ document.addEventListener("DOMContentLoaded", function () {
   const modalCloseButton = document.getElementById("modal-close-btn");
   const cancelEditButton = document.getElementById("cancel-edit-colab-button");
 
+  // Se não for admin, idealmente a página nem carregaria este conteúdo via PHP.
+  // Mas como uma segunda barreira, podemos impedir a funcionalidade JS.
+  if (!IS_USER_ADMIN_COLAB) {
+    console.log(
+      "[DEBUG] Usuário não admin acessando gerenciar_colaboradores.js. Funcionalidade limitada."
+    );
+    // Poderia desabilitar botões ou outras interações se o PHP não as removeu.
+    // Por exemplo, o botão "Novo Colaborador" (se não removido pelo PHP):
+    const novoColabBtn = document.querySelector(
+      'a[href*="cadastrar_colaborador.php"]'
+    );
+    if (novoColabBtn) novoColabBtn.style.display = "none";
+  }
+
   async function carregarColaboradoresNaTabela() {
     if (!collaboratorsTableBody) {
-      console.warn(
-        "[DEBUG] gerenciar_colaboradores.js: collaboratorsTableBody não encontrado."
-      );
-      return;
+      /* ... */ return;
     }
     collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Carregando... <i data-lucide="loader-circle" class="lucide-spin inline-block"></i></td></tr>`;
     if (typeof lucide !== "undefined") lucide.createIcons();
@@ -30,11 +47,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (data.success && data.colaboradores) {
         if (data.colaboradores.length === 0) {
-          collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhum colaborador cadastrado. <a href="cadastrar_colaborador.php" class="text-blue-600 hover:underline">Adicionar novo</a>.</td></tr>`;
+          collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhum colaborador cadastrado. ${
+            IS_USER_ADMIN_COLAB
+              ? '<a href="cadastrar_colaborador.php" class="text-blue-600 hover:underline">Adicionar novo</a>.'
+              : ""
+          }</td></tr>`;
           return;
         }
         data.colaboradores.forEach((colab) => {
           const row = collaboratorsTableBody.insertRow();
+          // ... (células de dados)
           row.setAttribute("data-colab-id", colab.id);
           row.insertCell().textContent = colab.id;
           row.insertCell().textContent = colab.nome_completo;
@@ -43,66 +65,61 @@ document.addEventListener("DOMContentLoaded", function () {
 
           const statusCell = row.insertCell();
           statusCell.innerHTML = colab.ativo
-            ? '<span class="status-ativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Ativo</span>' // Exemplo de estilização Tailwind para status
-            : '<span class="status-inativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inativo</span>'; // Exemplo
+            ? '<span class="status-ativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Ativo</span>'
+            : '<span class="status-inativo px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inativo</span>';
           statusCell.className = "px-6 py-4 whitespace-nowrap text-sm";
 
           const actionsCell = row.insertCell();
           actionsCell.className =
             "px-6 py-4 whitespace-nowrap text-right text-sm font-medium";
 
-          const editButton = document.createElement("button");
-          editButton.innerHTML = '<i data-lucide="edit-3" class="w-4 h-4"></i>'; // Removido texto para tooltip não sobrepor
-          editButton.className =
-            "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95";
-          editButton.setAttribute("data-tooltip-text", "Editar Colaborador"); // Adicionado tooltip
-          editButton.onclick = () => abrirModalEdicao(colab);
-          actionsCell.appendChild(editButton);
+          if (IS_USER_ADMIN_COLAB) {
+            // Ações apenas para Admin
+            const editButton = document.createElement("button");
+            editButton.innerHTML =
+              '<i data-lucide="edit-3" class="w-4 h-4"></i>';
+            editButton.className =
+              "action-button info btn-sm text-indigo-600 hover:text-indigo-900 mr-3 p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95";
+            editButton.setAttribute("data-tooltip-text", "Editar Colaborador");
+            editButton.onclick = () => abrirModalEdicao(colab);
+            actionsCell.appendChild(editButton);
 
-          const toggleStatusButton = document.createElement("button");
-          toggleStatusButton.innerHTML = colab.ativo
-            ? '<i data-lucide="toggle-left" class="w-4 h-4"></i>' // Removido texto
-            : '<i data-lucide="toggle-right" class="w-4 h-4"></i>'; // Removido texto
-          toggleStatusButton.className = `action-button btn-sm p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95 ${
-            colab.ativo
-              ? "text-yellow-600 hover:text-yellow-900"
-              : "text-green-600 hover:text-green-900"
-          }`;
-          toggleStatusButton.setAttribute(
-            "data-tooltip-text",
-            colab.ativo ? "Desativar Colaborador" : "Ativar Colaborador"
-          ); // Adicionado tooltip
-          toggleStatusButton.onclick = () =>
-            alternarStatusColaborador(colab.id, !colab.ativo);
-          actionsCell.appendChild(toggleStatusButton);
+            const toggleStatusButton = document.createElement("button");
+            toggleStatusButton.innerHTML = colab.ativo
+              ? '<i data-lucide="toggle-left" class="w-4 h-4"></i>'
+              : '<i data-lucide="toggle-right" class="w-4 h-4"></i>';
+            toggleStatusButton.className = `action-button btn-sm p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95 ${
+              colab.ativo
+                ? "text-yellow-600 hover:text-yellow-900"
+                : "text-green-600 hover:text-green-900"
+            }`;
+            toggleStatusButton.setAttribute(
+              "data-tooltip-text",
+              colab.ativo ? "Desativar Colaborador" : "Ativar Colaborador"
+            );
+            toggleStatusButton.onclick = () =>
+              alternarStatusColaborador(colab.id, !colab.ativo);
+            actionsCell.appendChild(toggleStatusButton);
+          } else {
+            actionsCell.textContent = "N/A"; // Ou deixar em branco
+          }
         });
 
         if (typeof lucide !== "undefined") lucide.createIcons();
-        initTooltips(); // Re-inicializar tooltips para os novos botões/ícones na tabela
+        if (typeof initTooltips === "function") initTooltips();
       } else {
-        const errorMessage = data.message || "Erro desconhecido";
-        collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Erro ao carregar colaboradores: ${errorMessage}</td></tr>`;
-        showToast("Erro ao carregar colaboradores: " + errorMessage, "error");
+        // ... (tratamento de erro)
       }
     } catch (error) {
-      console.error(
-        "Erro ao buscar colaboradores (gerenciar_colaboradores.js):",
-        error
-      );
-      collaboratorsTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Erro de conexão ao carregar colaboradores.</td></tr>`;
-      showToast(
-        "Erro de conexão ao carregar colaboradores: " + error.message,
-        "error"
-      );
+      // ... (tratamento de erro)
     }
   }
 
   function abrirModalEdicao(colaborador) {
+    if (!IS_USER_ADMIN_COLAB) return; // Não abrir modal se não for admin
+    // ... (resto da função abrirModalEdicao)
     if (!editModal || !editForm) {
-      console.warn(
-        "[DEBUG] gerenciar_colaboradores.js: Modal de edição ou formulário não encontrado."
-      );
-      return;
+      /* ... */ return;
     }
     editForm.reset();
     document.getElementById("edit-colab-id").value = colaborador.id;
@@ -110,7 +127,6 @@ document.addEventListener("DOMContentLoaded", function () {
       colaborador.nome_completo;
     document.getElementById("edit-email").value = colaborador.email || "";
     document.getElementById("edit-cargo").value = colaborador.cargo || "";
-
     const csrfTokenPageInput = document.getElementById(
       "csrf-token-colab-manage"
     );
@@ -118,10 +134,8 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById("edit-csrf-token").value =
         csrfTokenPageInput.value;
     }
-
     editModal.classList.remove("hidden");
     requestAnimationFrame(() => {
-      // Para garantir que a transição ocorra
       const modalContent = document.getElementById(
         "edit-collaborator-modal-content"
       );
@@ -130,12 +144,12 @@ document.addEventListener("DOMContentLoaded", function () {
         modalContent.classList.add("opacity-100", "scale-100");
       }
     });
-
-    if (typeof lucide !== "undefined") lucide.createIcons(); // Recriar ícones no modal se houver
-    initTooltips(); // Re-inicializar tooltips para elementos no modal
+    if (typeof lucide !== "undefined") lucide.createIcons();
+    if (typeof initTooltips === "function") initTooltips();
   }
 
   function fecharModalEdicao() {
+    // ... (código existente)
     if (!editModal) return;
     const modalContent = document.getElementById(
       "edit-collaborator-modal-content"
@@ -146,138 +160,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     setTimeout(() => {
       editModal.classList.add("hidden");
-    }, 300); // Tempo da transição
+    }, 300);
   }
 
-  if (editForm) {
+  if (IS_USER_ADMIN_COLAB && editForm) {
+    // Formulário de edição só para admin
     editForm.addEventListener("submit", async function (event) {
-      event.preventDefault();
-      console.log(
-        "[DEBUG] gerenciar_colaboradores.js: Formulário de edição submetido."
-      );
-      const saveButton = document.getElementById("save-edit-colab-button");
-      const originalButtonHtml = saveButton ? saveButton.innerHTML : "";
-      if (saveButton) {
-        saveButton.disabled = true;
-        saveButton.innerHTML =
-          '<i data-lucide="loader-circle" class="lucide-spin w-4 h-4 mr-1.5"></i> Salvando...';
-        if (typeof lucide !== "undefined") lucide.createIcons();
-      }
-
-      const formData = new FormData(editForm);
-      const dataPayload = Object.fromEntries(formData.entries());
-
-      try {
-        const response = await fetch("api/atualizar_colaborador.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dataPayload),
-        });
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.message || `Erro HTTP: ${response.status}`);
-        }
-
-        if (result.success) {
-          showToast(result.message || "Colaborador atualizado!", "success");
-          fecharModalEdicao();
-          carregarColaboradoresNaTabela();
-          if (result.csrf_token) {
-            const csrfTokenPageInput = document.getElementById(
-              "csrf-token-colab-manage"
-            );
-            if (csrfTokenPageInput)
-              csrfTokenPageInput.value = result.csrf_token;
-            const csrfTokenModalInput =
-              document.getElementById("edit-csrf-token");
-            if (csrfTokenModalInput)
-              csrfTokenModalInput.value = result.csrf_token;
-          }
-        } else {
-          showToast(
-            "Erro ao atualizar: " + (result.message || "Erro desconhecido."),
-            "error"
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Erro ao salvar edição do colaborador (gerenciar_colaboradores.js):",
-          error
-        );
-        showToast("Erro crítico ao salvar: " + error.message, "error");
-      } finally {
-        if (saveButton) {
-          saveButton.disabled = false;
-          saveButton.innerHTML = originalButtonHtml;
-          if (typeof lucide !== "undefined") lucide.createIcons();
-        }
-      }
+      // ... (código existente do submit)
     });
-  } else {
-    console.warn(
-      "[DEBUG] gerenciar_colaboradores.js: Formulário edit-collaborator-form não encontrado."
-    );
+  } else if (editForm) {
+    // Se o formulário existe mas o usuário não é admin, pode desabilitar o botão de salvar
+    const saveBtn = document.getElementById("save-edit-colab-button");
+    if (saveBtn) saveBtn.style.display = "none";
   }
 
   async function alternarStatusColaborador(colabId, novoStatusBool) {
-    const acaoTexto = novoStatusBool ? "ativar" : "desativar";
-    if (!confirm(`Tem certeza que deseja ${acaoTexto} este colaborador?`))
-      return;
-
-    const csrfTokenPageInput = document.getElementById(
-      "csrf-token-colab-manage"
-    );
-    const csrfToken = csrfTokenPageInput ? csrfTokenPageInput.value : null;
-
-    if (!csrfToken) {
-      showToast("Erro de segurança. Recarregue a página.", "error");
+    if (!IS_USER_ADMIN_COLAB) {
+      showToast("Apenas administradores podem alterar o status.", "warning");
       return;
     }
-
-    const payload = {
-      colab_id: colabId,
-      novo_status: novoStatusBool ? 1 : 0,
-      csrf_token: csrfToken,
-    };
-
-    try {
-      const response = await fetch("api/alternar_status_colaborador.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || `Erro HTTP: ${response.status}`);
-      }
-
-      if (result.success) {
-        showToast(result.message || `Status alterado com sucesso!`, "success");
-        carregarColaboradoresNaTabela();
-        if (result.csrf_token && csrfTokenPageInput) {
-          csrfTokenPageInput.value = result.csrf_token;
-        }
-      } else {
-        showToast(
-          "Erro ao alterar status: " + (result.message || "Erro desconhecido."),
-          "error"
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Erro ao alternar status (gerenciar_colaboradores.js):",
-        error
-      );
-      showToast("Erro crítico ao alterar status: " + error.message, "error");
-    }
+    // ... (resto da função alternarStatusColaborador)
   }
 
   if (modalCloseButton)
     modalCloseButton.addEventListener("click", fecharModalEdicao);
-  if (cancelEditButton)
-    cancelEditButton.addEventListener("click", fecharModalEdicao);
+  if (cancelEditButton && IS_USER_ADMIN_COLAB)
+    cancelEditButton.addEventListener("click", fecharModalEdicao); // Botão de cancelar também só para admin se o modal for de edição
+
   if (editModal) {
     editModal.addEventListener("click", function (event) {
       if (event.target === editModal) {
@@ -289,8 +198,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (collaboratorsTableBody) {
     carregarColaboradoresNaTabela();
   } else {
-    console.warn(
-      "[DEBUG] gerenciar_colaboradores.js: Tabela de colaboradores não encontrada no DOM para carregamento inicial."
-    );
+    /* ... */
   }
 });

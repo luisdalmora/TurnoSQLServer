@@ -7,11 +7,11 @@ import * as ausenciasManager from "./modules/ausenciasManager.js";
 import * as observacoesManager from "./modules/observacoesManager.js";
 import * as widgetsDashboard from "./modules/widgetsDashboard.js";
 import * as backupHandler from "./modules/backupHandler.js";
-import { initTooltips } from "./modules/tooltipManager.js"; // Importa o inicializador de tooltips
+import { initTooltips } from "./modules/tooltipManager.js";
 
 console.log("[DEBUG] main.js: Módulo principal carregado.");
+// A variável window.APP_USER_ROLE está disponível globalmente, definida no header.php
 
-// Função centralizada para navegação de mês e recarregamento de dados
 async function syncDatesAndReloadAll(newYear, newMonth) {
   console.log(
     `[DEBUG] syncDatesAndReloadAll (main.js) chamado com newYear: ${newYear}, newMonth: ${newMonth}`
@@ -20,7 +20,6 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
 
   uiUpdater.updateAllDisplays();
 
-  // Recarrega dados dos módulos que dependem da data global
   if (document.getElementById("shifts-table-main")) {
     await turnosManager.carregarTurnosDoServidor(
       state.currentDisplayYear,
@@ -52,19 +51,17 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
       state.currentDisplayMonthAusenciaSetor
     );
   }
-  // Após recarregar dados e potencialmente recriar elementos DOM, reinicialize os tooltips
-  initTooltips();
+  if (typeof initTooltips === "function") initTooltips();
 }
 
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("[DEBUG] DOMContentLoaded (main.js): Evento disparado.");
 
-  // Aplicar fade-in na página
-  // Garante que a classe é adicionada após o DOM estar pronto para a transição ser visível.
   requestAnimationFrame(() => {
     document.body.classList.add("body-visible");
   });
 
+  console.log(`[DEBUG] User Role: ${window.APP_USER_ROLE}`);
   console.log(
     `[DEBUG] Data inicial global (main.js) ${state.currentDisplayMonth}/${state.currentDisplayYear}`
   );
@@ -97,12 +94,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
   }
 
-  initTooltips(); // Inicializa tooltips para elementos já presentes no DOM
+  if (typeof initTooltips === "function") initTooltips();
 
   await utils.buscarEArmazenarColaboradores();
 
+  const IS_ADMIN_ON_MAIN = window.APP_USER_ROLE === "admin";
+
   if (document.getElementById("shifts-table-main")) {
-    turnosManager.initTurnosEventListeners();
+    turnosManager.initTurnosEventListeners(); // Internamente já verifica IS_USER_ADMIN via window.APP_USER_ROLE
     await turnosManager.carregarTurnosDoServidor(
       state.currentDisplayYear,
       state.currentDisplayMonth,
@@ -110,15 +109,16 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
   }
   if (document.getElementById("ausencias-table-main")) {
-    ausenciasManager.initAusenciasEventListeners();
+    ausenciasManager.initAusenciasEventListeners(); // Adicionar verificação de role internamente
     await ausenciasManager.carregarAusenciasDoServidor(
       state.currentDisplayYearAusencias,
       state.currentDisplayMonthAusencias
     );
   }
   if (document.getElementById("observacoes-gerais-textarea")) {
-    observacoesManager.initObservacoesEventListeners();
+    observacoesManager.initObservacoesEventListeners(); // Adicionar verificação de role internamente
   }
+
   if (document.getElementById("feriados-table")) {
     await widgetsDashboard.carregarFeriados(
       state.currentDisplayYearFeriados,
@@ -137,43 +137,37 @@ document.addEventListener("DOMContentLoaded", async function () {
       state.currentDisplayMonthAusenciaSetor
     );
   }
-  if (document.getElementById("backup-db-btn")) {
+
+  if (IS_ADMIN_ON_MAIN && document.getElementById("backup-db-btn")) {
     backupHandler.initBackupHandler();
+  } else if (document.getElementById("backup-db-btn")) {
+    document.getElementById("backup-db-btn").style.display = "none"; // PHP já deve ocultar
   }
 
-  // Re-chamar initTooltips após todos os carregamentos dinâmicos iniciais,
-  // especialmente se `lucide.createIcons()` for chamado dentro de outras funções
-  // de carregamento que podem adicionar mais elementos com `data-tooltip-text`.
-  // A chamada em `syncDatesAndReloadAll` e dentro de funções como `carregarColaboradoresNaTabela`
-  // (se esta gerasse ícones com tooltips) já cobre os casos de atualização.
-  // A chamada inicial aqui garante que os tooltips de elementos estáticos (como da sidebar) funcionem.
-  initTooltips();
+  if (typeof initTooltips === "function") initTooltips();
 
   const prevMonthButton = document.getElementById("prev-month-button");
   if (prevMonthButton) {
     prevMonthButton.addEventListener("click", () => {
-      console.log("[DEBUG] Botão 'Anterior' (Turnos/Geral) clicado (main.js).");
-      let newMonth = state.currentDisplayMonth - 1;
-      let newYear = state.currentDisplayYear;
-      if (newMonth < 1) {
-        newMonth = 12;
-        newYear--;
+      let nm = state.currentDisplayMonth - 1,
+        ny = state.currentDisplayYear;
+      if (nm < 1) {
+        nm = 12;
+        ny--;
       }
-      syncDatesAndReloadAll(newYear, newMonth);
+      syncDatesAndReloadAll(ny, nm);
     });
   }
-
   const nextMonthButton = document.getElementById("next-month-button");
   if (nextMonthButton) {
     nextMonthButton.addEventListener("click", () => {
-      console.log("[DEBUG] Botão 'Próximo' (Turnos/Geral) clicado (main.js).");
-      let newMonth = state.currentDisplayMonth + 1;
-      let newYear = state.currentDisplayYear;
-      if (newMonth > 12) {
-        newMonth = 1;
-        newYear++;
+      let nm = state.currentDisplayMonth + 1,
+        ny = state.currentDisplayYear;
+      if (nm > 12) {
+        nm = 1;
+        ny++;
       }
-      syncDatesAndReloadAll(newYear, newMonth);
+      syncDatesAndReloadAll(ny, nm);
     });
   }
 
@@ -182,34 +176,27 @@ document.addEventListener("DOMContentLoaded", async function () {
   );
   if (prevMonthBtnAus && prevMonthBtnAus !== prevMonthButton) {
     prevMonthBtnAus.addEventListener("click", () => {
-      console.log(
-        "[DEBUG] Botão 'Anterior' (Ausências Específico) clicado (main.js)."
-      );
-      let newMonth = state.currentDisplayMonthAusencias - 1;
-      let newYear = state.currentDisplayYearAusencias;
-      if (newMonth < 1) {
-        newMonth = 12;
-        newYear--;
+      let nm = state.currentDisplayMonthAusencias - 1,
+        ny = state.currentDisplayYearAusencias;
+      if (nm < 1) {
+        nm = 12;
+        ny--;
       }
-      syncDatesAndReloadAll(newYear, newMonth);
+      syncDatesAndReloadAll(ny, nm);
     });
   }
-
   const nextMonthBtnAus = document.getElementById(
     "next-month-ausencias-button"
   );
   if (nextMonthBtnAus && nextMonthBtnAus !== nextMonthButton) {
     nextMonthBtnAus.addEventListener("click", () => {
-      console.log(
-        "[DEBUG] Botão 'Próximo' (Ausências Específico) clicado (main.js)."
-      );
-      let newMonth = state.currentDisplayMonthAusencias + 1;
-      let newYear = state.currentDisplayYearAusencias;
-      if (newMonth > 12) {
-        newMonth = 1;
-        newYear++;
+      let nm = state.currentDisplayMonthAusencias + 1,
+        ny = state.currentDisplayYearAusencias;
+      if (nm > 12) {
+        nm = 1;
+        ny++;
       }
-      syncDatesAndReloadAll(newYear, newMonth);
+      syncDatesAndReloadAll(ny, nm);
     });
   }
 
