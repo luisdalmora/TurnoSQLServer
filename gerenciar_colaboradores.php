@@ -5,13 +5,21 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-$host = $_SERVER['HTTP_HOST'];
-$project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
-if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
-    $project_root_web_path = '';
+if (!defined('BASE_URL_REDIRECT')) { // Define se não foi definido pelo header (acesso direto)
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    // Ajuste para calcular o caminho base do projeto
+    $script_path_array = explode('/', dirname($_SERVER['SCRIPT_NAME']));
+    // Se estiver em subpasta, remove o último elemento (nome do script/pasta atual)
+    // Isso é uma heurística e pode precisar de ajuste fino dependendo da estrutura do servidor.
+    // Para este projeto, dirname(__DIR__) no header.php é mais confiável se header.php está na raiz do include path.
+    $project_root_web_path = implode('/', array_slice($script_path_array, 0, count($script_path_array) - (basename(getcwd()) == basename(dirname($_SERVER['SCRIPT_NAME'])) ? 0 : 0) ));
+    if ($project_root_web_path === '/' || $project_root_web_path === '\\' || $project_root_web_path === '') {
+        $project_root_web_path = ''; 
+    }
+    define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
 }
-define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
@@ -23,21 +31,35 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     exit;
 }
 
-$pageTitle = 'Gerenciar Colaboradores';
-$currentPage = 'colaboradores';
-$headerIcon = '<i data-lucide="users-cog" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
+$pageTitle = 'Gerenciar Colaboradores'; //
+$currentPage = 'colaboradores'; //
+$headerIcon = '<i data-lucide="users-cog" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>'; //
 
-require_once __DIR__ . '/templates/header.php';
+require_once __DIR__ . '/templates/header.php'; // Define can()
 
-// Token CSRF para ações nesta página
-$csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'] ?? '';
-if (empty($csrfTokenColabManage) && isset($_SESSION['csrf_token_colab_manage'])) {
+// Verificação de Permissão para visualizar a página
+if (!can('ler', 'colaboradores')) { 
+    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Você não tem permissão para acessar esta página.'];
+    header('Location: ' . BASE_URL . '/home.php');
+    exit;
+}
+
+$csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'] ?? ''; //
+// A regeneração de token é melhor feita no POST/API ou quando estritamente necessário.
+// Se a sessão já tiver um, usa-o. Se não, um novo será criado quando a sessão iniciar.
+// Apenas garantimos que se a chave de sessão existe, o token também exista.
+if (empty($csrfTokenColabManage) && array_key_exists('csrf_token_colab_manage', $_SESSION)) {
+    $_SESSION['csrf_token_colab_manage'] = bin2hex(random_bytes(32));
+    $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
+} elseif (empty($csrfTokenColabManage) && !array_key_exists('csrf_token_colab_manage', $_SESSION)) {
+    // Se a chave nem existe na sessão, cria.
     $_SESSION['csrf_token_colab_manage'] = bin2hex(random_bytes(32));
     $csrfTokenColabManage = $_SESSION['csrf_token_colab_manage'];
 }
 
-$flashMessage = null; // Para exibir mensagens de processar_cadastro_colaborador.php
-if (isset($_SESSION['flash_message'])) {
+
+$flashMessage = null; 
+if (isset($_SESSION['flash_message'])) { //
     $flashMessage = $_SESSION['flash_message'];
     unset($_SESSION['flash_message']);
 }
@@ -48,12 +70,17 @@ if (isset($_SESSION['flash_message'])) {
         <h2 class="text-lg font-semibold text-gray-800 flex items-center">
             <i data-lucide="list-ul" class="w-5 h-5 mr-2 text-blue-600"></i> Lista de Colaboradores
         </h2>
-        <a href="<?php echo BASE_URL; ?>/cadastrar_colaborador.php" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-            <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Novo Colaborador
-        </a>
+        <?php if (can('criar', 'colaboradores')): ?>
+            <a href="<?php echo BASE_URL; ?>/cadastrar_colaborador.php" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Novo Colaborador
+            </a>
+        <?php endif; ?>
     </div>
     <div class="overflow-x-auto">
-        <input type="hidden" id="csrf-token-colab-manage" value="<?php echo htmlspecialchars($csrfTokenColabManage); ?>">
+        <?php // O token CSRF para o modal de edição (se o usuário puder editar)
+        if (can('atualizar', 'colaboradores')): ?>
+            <input type="hidden" id="csrf-token-colab-manage" value="<?php echo htmlspecialchars($csrfTokenColabManage); ?>">
+        <?php endif; ?>
         <table id="collaborators-table" class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
@@ -62,16 +89,21 @@ if (isset($_SESSION['flash_message'])) {
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cargo</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                    <?php if (can('atualizar', 'colaboradores') || can('excluir', 'colaboradores')): ?>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                    <?php else: ?>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th> 
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                <tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Carregando colaboradores... <i data-lucide="loader-circle" class="lucide-spin inline-block"></i></td></tr>
+                <tr><td colspan="<?php echo (can('atualizar', 'colaboradores') || can('excluir', 'colaboradores')) ? '6' : '5'; ?>" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Carregando colaboradores... <i data-lucide="loader-circle" class="lucide-spin inline-block"></i></td></tr>
             </tbody>
         </table>
     </div>
 </section>
 
+<?php if (can('atualizar', 'colaboradores')): ?>
 <div id="edit-collaborator-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden z-[1050]">
     <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white transform transition-all scale-95 opacity-0" 
          id="edit-collaborator-modal-content"
@@ -112,10 +144,9 @@ if (isset($_SESSION['flash_message'])) {
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <?php
-// Removidos estilos inline do modal, devem ir para src/input.css ou serem classes Tailwind.
-// A lógica JS para exibir/ocultar o modal já deve estar em gerenciar_colaboradores.js.
 $pageSpecificJs = ['/public/js/page_specific/gerenciar_colaboradores.js'];
 require_once __DIR__ . '/templates/footer.php';
 ?>

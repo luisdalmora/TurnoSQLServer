@@ -4,32 +4,84 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start(); 
 }
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-$host = $_SERVER['HTTP_HOST'];
+// Inclui config.php primeiro para ter acesso a BASE_PROJECT_WEB_PATH e outras configs
+require_once __DIR__ . '/../config/config.php'; 
 
-$project_path_on_server = str_replace(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '', str_replace('\\', '/', dirname(__DIR__)));
-if (strpos($project_path_on_server, '/') !== 0) {
-    $project_path_on_server = '/' . $project_path_on_server;
-}
-$project_base_path = rtrim($project_path_on_server, '/');
-
-// Garante que BASE_URL é definida apenas uma vez
+// BASE_URL: Usada para links de assets (CSS, JS, imagens) nos templates.
+// Derivada de SITE_URL para garantir consistência.
 if (!defined('BASE_URL')) {
-    define('BASE_URL', rtrim($protocol . $host . $project_base_path, '/'));
+    // SITE_URL já é definida em config.php como $protocol . $host . BASE_PROJECT_WEB_PATH
+    // e já tem rtrim aplicado.
+    define('BASE_URL', SITE_URL); 
 }
-
-require_once __DIR__ . '/../config/config.php';
 
 $pageTitle = $pageTitle ?? 'Sim Posto'; 
 $nomeUsuarioLogado = $_SESSION['usuario_nome_completo'] ?? 'Usuário';
 $csrfTokenBackup = $_SESSION['csrf_token_backup'] ?? ''; 
 
-// Variável para verificação de permissão e função auxiliar
-$USUARIO_ATUAL_ROLE = $_SESSION['usuario_role'] ?? 'user'; // Default para 'user' se não estiver setado
+$USUARIO_ATUAL_ROLE = $_SESSION['usuario_role'] ?? 'user'; 
 
 if (!function_exists('isAdmin')) {
     function isAdmin() {
         return isset($_SESSION['usuario_role']) && $_SESSION['usuario_role'] === 'admin';
+    }
+}
+
+if (!function_exists('can')) {
+    function can($action, $resource, $resourceOwnerId = null) {
+        $role = $_SESSION['usuario_role'] ?? 'guest'; 
+        $currentUserId = $_SESSION['usuario_id'] ?? null;
+        $permissions = [
+            'admin' => [
+                'turnos' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio', 'ler_todos', 'gerenciar_todos'],
+                'ausencias' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio', 'ler_todos', 'gerenciar_todos'],
+                'colaboradores' => ['criar', 'ler', 'atualizar', 'excluir', 'gerenciar'],
+                'scripts' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio', 'ler_todos', 'gerenciar_todos'],
+                'relatorios' => ['visualizar'],
+                'observacoes_gerais' => ['ler', 'editar'],
+                'backup' => ['executar'],
+                'sistema' => ['acessar_admin_geral'] 
+            ],
+            'user' => [ 
+                'turnos' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio'],
+                'ausencias' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio'],
+                'scripts' => ['criar', 'ler_proprio', 'atualizar_proprio', 'excluir_proprio'], 
+                'observacoes_gerais' => ['ler'],
+                'relatorios' => [], 
+                'colaboradores' => [],
+                'backup' => [],
+                'sistema' => []
+            ],
+            'guest' => [ 
+                'turnos' => [], 'ausencias' => [], 'colaboradores' => [], 'scripts' => [],
+                'relatorios' => [], 'observacoes_gerais' => [], 'backup' => [], 'sistema' => []
+            ]
+        ];
+        if (!isset($permissions[$role]) || !isset($permissions[$role][$resource])) {
+            return false; 
+        }
+        if (str_ends_with($action, '_proprio')) {
+            if ($role === 'admin' && in_array('gerenciar_todos', $permissions[$role][$resource])) {
+                $baseAction = str_replace('_proprio', '', $action);
+                return in_array($baseAction, $permissions[$role][$resource]);
+            }
+            if ($resourceOwnerId !== null && $currentUserId !== null && (int)$resourceOwnerId === (int)$currentUserId) {
+                $baseAction = str_replace('_proprio', '', $action);
+                return in_array($baseAction, $permissions[$role][$resource]);
+            }
+            return false; 
+        }
+        if (in_array($action, $permissions[$role][$resource]) || 
+            in_array('gerenciar', $permissions[$role][$resource]) || 
+            in_array('gerenciar_todos', $permissions[$role][$resource])) {
+            return true;
+        }
+        if ($role === 'admin' && $action === 'visualizar_pagina_admin' && in_array('acessar_admin_geral', $permissions['admin']['sistema'])) {
+            if (in_array($resource, ['colaboradores', 'scripts', 'relatorios', 'backup_pagina'])) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 ?>
@@ -50,7 +102,7 @@ if (!function_exists('isAdmin')) {
             if (preg_match('/^(http:\/\/|https:\/\/|\/\/)/i', $cssFile)) {
                 echo '<link href="' . htmlspecialchars($cssFile) . '" rel="stylesheet">' . "\n";
             } else {
-                echo '<link href="' . BASE_URL . htmlspecialchars($cssFile) . '" rel="stylesheet">' . "\n";
+                echo '<link href="' . BASE_URL . '/' . ltrim(htmlspecialchars($cssFile), '/') . '" rel="stylesheet">' . "\n";
             }
         }
     }
@@ -59,7 +111,6 @@ if (!function_exists('isAdmin')) {
         .body-fade-in { opacity: 0; transition: opacity 0.4s ease-in-out; }
         .body-visible { opacity: 1; }
         #edit-collaborator-modal.hidden, #backup-modal-backdrop.hidden { display: none; }
-        #edit-collaborator-modal, #backup-modal-backdrop { display: flex; }
         #edit-collaborator-modal-content, .modal-content-backup {
             transition-property: transform, opacity;
             transition-duration: 300ms;
@@ -68,13 +119,15 @@ if (!function_exists('isAdmin')) {
     </style>
     <script>
         window.APP_USER_ROLE = "<?php echo htmlspecialchars($USUARIO_ATUAL_ROLE, ENT_QUOTES, 'UTF-8'); ?>";
+        window.APP_USER_ID = <?php echo isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : 'null'; ?>;
+        window.BASE_URL = "<?php echo BASE_URL; ?>"; 
     </script>
 </head>
 <body class="bg-gray-100 font-poppins text-gray-700 body-fade-in">
     <div class="flex h-screen overflow-hidden">
         <?php
         $currentPage = $currentPage ?? ''; 
-        require_once __DIR__ . '/sidebar.php';
+        require_once __DIR__ . '/sidebar.php'; 
         ?>
         <div class="flex-grow flex flex-col overflow-y-auto">
             <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-6 flex-shrink-0">
@@ -88,7 +141,3 @@ if (!function_exists('isAdmin')) {
                 </div>
             </header>
             <main class="flex-grow p-4 md:p-6">
-<?php
-// templates/sidebar.php
-// ...
-?>

@@ -5,13 +5,18 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start(); 
 }
 
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-$host = $_SERVER['HTTP_HOST'];
-$project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
-if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
-    $project_root_web_path = ''; 
-}
+// Define BASE_URL_REDIRECT se não foi definido pelo header.php (acesso direto ao arquivo)
 if (!defined('BASE_URL_REDIRECT')) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    // Tenta calcular o caminho base do projeto de forma mais robusta
+    // Se config.php está em /config/, dirname(__DIR__) a partir dele é a raiz do projeto.
+    // Se home.php está na raiz do projeto, dirname($_SERVER['SCRIPT_NAME']) pode ser '/' ou o nome da subpasta.
+    $script_dir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+    $project_root_web_path = rtrim($script_dir, '/'); // Remove barra final se houver
+    if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
+        $project_root_web_path = ''; 
+    }
     define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
 }
 
@@ -26,25 +31,24 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     exit;
 }
 
-$pageTitle = 'Dashboard';
-$currentPage = 'home'; 
-$headerIcon = '<i data-lucide="layout-dashboard" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
+$pageTitle = 'Dashboard'; //
+$currentPage = 'home';  //
+$headerIcon = '<i data-lucide="layout-dashboard" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>'; //
 
-require_once __DIR__ . '/templates/header.php'; 
+require_once __DIR__ . '/templates/header.php'; // Define can()
 
-$csrfToken = $_SESSION['csrf_token'] ?? '';
-$csrfTokenAusencias = $_SESSION['csrf_token_ausencias'] ?? '';
-$csrfTokenObsGeral = $_SESSION['csrf_token_obs_geral'] ?? '';
+$csrfToken = $_SESSION['csrf_token'] ?? ''; 
+$csrfTokenAusencias = $_SESSION['csrf_token_ausencias'] ?? ''; 
+$csrfTokenObsGeral = $_SESSION['csrf_token_obs_geral'] ?? ''; 
 
-$anoExibicao = date('Y');
-$mesExibicao = date('m'); // Mês como número (01-12)
-$nomesMeses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-$nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
+$anoExibicao = date('Y'); 
+$mesExibicao = date('m'); 
+$nomesMeses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]; 
+$nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? ''; 
 
-$isUserAdmin = isAdmin(); 
 ?>
 
-<?php if ($isUserAdmin): ?>
+<?php if (can('executar', 'backup')): ?>
 <div id="backup-modal-backdrop" class="fixed inset-0 bg-gray-600 bg-opacity-75 backdrop-blur-sm flex items-center justify-center hidden z-[1070]">
     <div class="modal-content-backup bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center transform transition-all scale-95 opacity-0">
       <h3 id="backup-modal-title" class="text-lg font-medium text-gray-900">Backup do Banco de Dados</h3>
@@ -111,7 +115,8 @@ $isUserAdmin = isAdmin();
 
     <section class="xl:col-span-2 bg-white p-4 md:p-5 rounded-lg shadow space-y-4 md:space-y-5">
         <div>
-            <?php if ($isUserAdmin): ?>
+            <?php // Token CSRF para turnos, necessário se o usuário puder interagir com eles
+            if (can('criar', 'turnos') || can('atualizar_proprio', 'turnos') || can('excluir_proprio', 'turnos') || can('gerenciar_todos', 'turnos')): ?>
                 <input type="hidden" id="csrf-token-shifts" value="<?php echo htmlspecialchars($csrfToken); ?>">
             <?php endif; ?>
             <div class="flex flex-col sm:flex-row justify-between items-center mb-3 pb-3 border-b border-gray-200 gap-2">
@@ -126,17 +131,28 @@ $isUserAdmin = isAdmin();
                 </button>
             </div>
             
-            <?php if ($isUserAdmin): ?>
+            <?php 
+            $podeCriarTurno = can('criar', 'turnos');
+            $podeExcluirTurno = can('excluir_proprio', 'turnos') || can('gerenciar_todos', 'turnos'); // Se pode gerenciar todos, pode excluir qualquer um.
+            $podeSalvarTurno = $podeCriarTurno || can('atualizar_proprio', 'turnos') || can('gerenciar_todos', 'turnos');
+            ?>
+            <?php if ($podeCriarTurno || $podeExcluirTurno || $podeSalvarTurno): ?>
             <div class="flex flex-wrap gap-2 mb-3">
+                <?php if ($podeCriarTurno): ?>
                 <button id="add-shift-row-button" class="px-3 py-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Adicionar Nova Linha de Turno">
                     <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i> Adicionar Turno
                 </button>
+                <?php endif; ?>
+                <?php if ($podeExcluirTurno): ?>
                 <button id="delete-selected-shifts-button" class="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Excluir Turnos Selecionados">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-1.5"></i> Excluir
                 </button>
+                <?php endif; ?>
+                <?php if ($podeSalvarTurno): ?>
                 <button id="save-shifts-button" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Salvar Alterações nos Turnos">
                     <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar
                 </button>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
 
@@ -144,7 +160,7 @@ $isUserAdmin = isAdmin();
                 <table id="shifts-table-main" class="w-full min-w-[500px]">
                 <thead class="sticky top-0 bg-blue-600 text-white z-10">
                     <tr>
-                        <?php if ($isUserAdmin): ?>
+                        <?php if ($podeExcluirTurno): // Checkbox de selecionar todos apenas se puder excluir ?>
                         <th class="p-2 w-10 text-center"><input type="checkbox" id="select-all-shifts" title="Selecionar Todos os Turnos" class="form-checkbox h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" data-tooltip-text="Selecionar/Desselecionar Todos"></th>
                         <?php else: ?>
                         <th class="p-2 w-10 text-center"></th>
@@ -155,21 +171,22 @@ $isUserAdmin = isAdmin();
                         <th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th>
                     </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        </tbody>
+                    <tbody class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
         </div>
 
         <div class="pt-4 mt-6 border-t border-gray-200">
-            <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center" data-tooltip-text="Visualização em Calendário dos Turnos do Mês">
+            <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center" data-tooltip-text="Visualização em Calendário dos Eventos do Mês">
                 <i data-lucide="calendar-days" class="w-5 h-5 mr-2 text-blue-600"></i>
-                Calendário de Turnos (<span id="calendar-view-period"><?php echo htmlspecialchars($nomeMesExibicao); ?></span>)
+                Calendário de Eventos (<span id="calendar-view-period"><?php echo htmlspecialchars($nomeMesExibicao); ?></span>)
             </h2>
             <div id="turnos-calendar-view-container" class="overflow-x-auto">
                 <p class="text-center text-gray-500 py-4">Carregando calendário...</p>
             </div>
         </div>
+
+
         <div class="pt-4 mt-6 border-t border-gray-200">
             <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center pb-3 border-b border-gray-200" data-tooltip-text="Resumo de Horas Trabalhadas por Colaborador no Mês">
                 <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-blue-600"></i>
@@ -179,8 +196,7 @@ $isUserAdmin = isAdmin();
                 <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                     <table id="employee-summary-table" class="w-full">
                         <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th><th class="p-2 text-left font-semibold uppercase text-xs">Total Horas</th></tr></thead>
-                        <tbody class="divide-y divide-gray-200">
-                            </tbody>
+                        <tbody class="divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
                 <div id="employee-hours-chart-container" class="w-full h-[280px] relative">
@@ -191,7 +207,7 @@ $isUserAdmin = isAdmin();
     </section>
 
     <section class="xl:col-span-3 bg-white p-4 md:p-5 rounded-lg shadow">
-        <?php if ($isUserAdmin): ?>
+        <?php if (can('criar', 'ausencias') || can('atualizar_propria', 'ausencias') || can('excluir_propria', 'ausencias') || can('gerenciar_todos', 'ausencias')): ?>
             <input type="hidden" id="csrf-token-ausencias" value="<?php echo htmlspecialchars($csrfTokenAusencias); ?>">
         <?php endif; ?>
         <div class="flex flex-col sm:flex-row justify-between items-center mb-3 pb-3 border-b border-gray-200 gap-2">
@@ -205,27 +221,38 @@ $isUserAdmin = isAdmin();
                 Próximo <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
             </button>
         </div>
-        <?php if ($isUserAdmin): ?>
+        <?php
+            $podeCriarAusencia = can('criar', 'ausencias');
+            $podeExcluirAusencia = can('excluir_propria', 'ausencias') || can('gerenciar_todos', 'ausencias');
+            $podeSalvarAusencia = $podeCriarAusencia || can('atualizar_propria', 'ausencias') || can('gerenciar_todos', 'ausencias');
+        ?>
+        <?php if ($podeCriarAusencia || $podeExcluirAusencia || $podeSalvarAusencia): ?>
         <div class="flex flex-wrap gap-2 mb-3">
+            <?php if ($podeCriarAusencia): ?>
             <button id="add-ausencia-row-button" class="px-3 py-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Adicionar Nova Linha de Ausência">
                 <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i> Adicionar Ausência
             </button>
+            <?php endif; ?>
+            <?php if ($podeExcluirAusencia): ?>
             <button id="delete-selected-ausencias-button" class="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Excluir Ausências Selecionadas">
                 <i data-lucide="trash-2" class="w-4 h-4 mr-1.5"></i> Excluir
             </button>
+            <?php endif; ?>
+            <?php if ($podeSalvarAusencia): ?>
             <button id="save-ausencias-button" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Salvar Alterações nas Ausências">
                 <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar Ausências
             </button>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="overflow-x-auto max-h-72 text-xs md:text-sm">
             <table id="ausencias-table-main" class="w-full min-w-[500px]">
                 <thead class="sticky top-0 bg-blue-600 text-white z-10">
                 <tr>
-                    <?php if ($isUserAdmin): ?>
+                    <?php if ($podeExcluirAusencia): ?>
                     <th class="p-2 w-10 text-center"><input type="checkbox" id="select-all-ausencias" title="Selecionar Todas as Ausências" class="form-checkbox h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" data-tooltip-text="Selecionar/Desselecionar Todas"></th>
                     <?php else: ?>
-                    <th class="p-2 w-10 text-center"></th> 
+                    <th class="p-2 w-10 text-center"></th>
                     <?php endif; ?>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Início</th>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Fim</th>
@@ -233,7 +260,7 @@ $isUserAdmin = isAdmin();
                     <th class="p-2 text-left font-semibold uppercase text-xs">Motivo/Observações</th>
                 </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200"><tr><td colspan="<?php echo $isUserAdmin ? '5' : '4'; ?>" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
+                <tbody class="divide-y divide-gray-200"><tr><td colspan="<?php echo $podeExcluirAusencia ? '5' : '4'; ?>" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
             </table>
         </div>
     </section>
@@ -242,13 +269,13 @@ $isUserAdmin = isAdmin();
         <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center" data-tooltip-text="Observações Gerais para o Mês">
             <i data-lucide="notebook-pen" class="w-5 h-5 mr-2 text-blue-600"></i> Observações Gerais
         </h2>
-        <?php if ($isUserAdmin): ?>
+        <?php if (can('editar', 'observacoes_gerais')): ?>
             <input type="hidden" id="csrf-token-obs-geral" value="<?php echo htmlspecialchars($csrfTokenObsGeral); ?>">
         <?php endif; ?>
         <textarea id="observacoes-gerais-textarea" rows="3" placeholder="Digite aqui qualquer informação importante para este mês..." 
                   class="form-textarea w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  <?php echo !$isUserAdmin ? 'readonly' : ''; ?>></textarea>
-        <?php if ($isUserAdmin): ?>
+                  <?php echo !can('editar', 'observacoes_gerais') ? 'readonly' : ''; ?>></textarea>
+        <?php if (can('editar', 'observacoes_gerais')): ?>
         <button id="salvar-observacoes-gerais-btn" class="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Salvar Observações Gerais">
             <i data-lucide="save" class="w-4 h-4 mr-1.5"></i> Salvar Observações
         </button>
@@ -258,8 +285,7 @@ $isUserAdmin = isAdmin();
 
 <?php
 $pageSpecificJs = [
-    'https://cdn.jsdelivr.net/npm/chart.js' // Necessário para o gráfico de resumo de horas
-    // O main.js já será incluído automaticamente pelo footer.php
+    'https://cdn.jsdelivr.net/npm/chart.js' 
 ];
 require_once __DIR__ . '/templates/footer.php';
 ?>
