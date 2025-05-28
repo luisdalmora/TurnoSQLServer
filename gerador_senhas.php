@@ -11,7 +11,11 @@ $project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
     $project_root_web_path = '';
 }
-define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+// Define BASE_URL_REDIRECT se ainda não estiver definido (evita conflito com header.php)
+if (!defined('BASE_URL_REDIRECT')) {
+    define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
+}
+
 
 if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
@@ -22,33 +26,15 @@ if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
     header('Location: ' . BASE_URL_REDIRECT . '/index.html?erro=' . urlencode('Acesso negado. Faça login primeiro.'));
     exit;
 }
-?>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-<script>
-    // Configuração do Toastr (pode já estar no seu gerador_senhas.js ou main.js)
-    if (typeof toastr !== 'undefined') {
-        toastr.options = {
-            "closeButton": true,
-            "progressBar": true,
-            "positionClass": "toast-top-right",
-            "preventDuplicates": true,
-            "timeOut": "3000"
-        };
-    }
-</script>
-
-<?php
 $pageTitle = 'Gerador de Senhas';
 $currentPage = 'gerador_senhas';
 $headerIcon = '<i data-lucide="key-round" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
-
+// O script JS será carregado como módulo pelo footer.php
 $pageSpecificJs = ['/public/js/page_specific/gerador_senhas_script.js'];
-// CSS do Toastr pode ser linkado no header.php ou aqui via $pageSpecificCss se não quiser global.
-// Adicionando ao $pageSpecificCss para ser pego pelo header.php:
-$pageSpecificCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css'];
+// Não precisamos mais do CSS do Toastr aqui, pois usamos o showToast customizado
+$pageSpecificCss = []; 
 
 require_once __DIR__ . '/templates/header.php';
 ?>
@@ -75,23 +61,5 @@ require_once __DIR__ . '/templates/header.php';
 </div>
 
 <?php
-// jQuery e Toastr são carregados via CDN no footer para esta página,
-// conforme o arquivo original. Se preferir local, adicione aos $pageSpecificJs.
-$pageSpecificJs = [
-    '/public/js/page_specific/gerador_senhas_script.js' // O seu script JS que usa jQuery e Toastr
-];
-
-// O footer.php incluirá os scripts.
-// Adicione a referência ao Toastr CSS e Roboto Mono font no header.php ou
-// inclua o CSS do Toastr via $pageSpecificCss aqui se preferir.
-$pageSpecificCssLinks = [
-    "https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css"
-];
-
-// Modificando o header para incluir CSS e JS específicos de CDN para esta página
-// Isso é um hack. Idealmente, o header.php seria mais flexível ou essas libs seriam locais.
-// Para este caso, vamos adicionar diretamente no footer.php.
-// Se preferir, pode modificar o header.php para aceitar um array de links CSS/JS externos.
-
 require_once __DIR__ . '/templates/footer.php';
 ?>

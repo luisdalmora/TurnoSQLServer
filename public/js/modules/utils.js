@@ -32,14 +32,39 @@ export function showToast(message, type = "info", duration = 3500) {
   }
   const toast = document.createElement("div");
   toast.id = "toast-notification";
-  let bgColor = "bg-blue-500"; // Cor padrão para 'info'
-  if (type === "success") bgColor = "bg-green-500";
-  else if (type === "error") bgColor = "bg-red-500";
-  else if (type === "warning") bgColor = "bg-yellow-500 text-gray-800";
 
-  toast.className = `fixed bottom-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-[1060] transition-all duration-300 ease-out opacity-0 translate-y-10 ${bgColor}`;
-  toast.textContent = message;
+  let bgColor = "bg-blue-500"; // Cor padrão para 'info'
+  let iconHtml = "";
+  const iconClasses = "w-5 h-5 mr-2"; // Classes padrão para o ícone
+
+  if (type === "success") {
+    bgColor = "bg-green-500";
+    iconHtml = `<i data-lucide="check-circle" class="${iconClasses}"></i>`;
+  } else if (type === "error") {
+    bgColor = "bg-red-500";
+    iconHtml = `<i data-lucide="x-circle" class="${iconClasses}"></i>`;
+  } else if (type === "warning") {
+    bgColor = "bg-yellow-500 text-gray-800"; // Tailwind amarelo pode precisar de texto escuro
+    iconHtml = `<i data-lucide="alert-triangle" class="${iconClasses}"></i>`;
+  } else if (type === "info") {
+    bgColor = "bg-blue-500";
+    iconHtml = `<i data-lucide="info" class="${iconClasses}"></i>`;
+  }
+
+  toast.className = `fixed bottom-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-[1060] transition-all duration-300 ease-out opacity-0 translate-y-10 flex items-center ${bgColor}`;
+  toast.innerHTML = iconHtml + `<span>${message}</span>`; // Adiciona o ícone e a mensagem
+
   document.body.appendChild(toast);
+
+  // Renderizar o ícone Lucide
+  if (typeof lucide !== "undefined" && iconHtml !== "") {
+    const iconElement = toast.querySelector("i[data-lucide]");
+    if (iconElement) {
+      lucide.createIcons({
+        nodes: [iconElement],
+      });
+    }
+  }
 
   requestAnimationFrame(() => {
     toast.classList.remove("opacity-0", "translate-y-10");
@@ -69,7 +94,7 @@ export async function buscarEArmazenarColaboradores() {
   }
   try {
     console.log("[DEBUG] Buscando colaboradores do servidor (utils.js)...");
-    const response = await fetch("api/obter_colaboradores.php");
+    const response = await fetch("api/obter_colaboradores.php"); //
     console.log(
       "[DEBUG] Resposta de obter_colaboradores.php status (utils.js):",
       response.status
@@ -158,4 +183,105 @@ export function calcularDuracaoDecimal(horaInicioStr, horaFimStr) {
 
   const duracaoEmMinutos = fimEmMinutos - inicioEmMinutos;
   return duracaoEmMinutos > 0 ? duracaoEmMinutos / 60.0 : 0;
+}
+
+export function showConfirmationModal(
+  message,
+  onConfirm,
+  onCancel,
+  title = "Confirmação"
+) {
+  const modalId = "confirmation-modal-dynamic";
+  let existingModal = document.getElementById(modalId);
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  const modal = document.createElement("div");
+  modal.id = modalId;
+  modal.className =
+    "fixed inset-0 bg-gray-800 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-[1080] p-4 transition-opacity duration-300 ease-in-out opacity-0";
+
+  modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm transform transition-all duration-300 ease-in-out scale-95 opacity-0">
+            <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                    <i data-lucide="alert-circle" class="w-5 h-5 mr-2 text-yellow-500"></i>
+                    ${title}
+                </h3>
+                <button type="button" class="text-gray-400 hover:text-gray-600 modal-close-btn-confirm p-1 rounded-full hover:bg-gray-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="mt-4 mb-6">
+                <p class="text-sm text-gray-600">${message}</p>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" class="modal-cancel-btn-confirm inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
+                    <i data-lucide="x-circle" class="w-4 h-4 mr-2"></i> Cancelar
+                </button>
+                <button type="button" class="modal-confirm-btn-confirm inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-150">
+                    <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    `;
+  document.body.appendChild(modal);
+
+  const modalContent = modal.querySelector(".bg-white");
+
+  if (typeof lucide !== "undefined") {
+    lucide.createIcons({
+      nodes: modal.querySelectorAll("i[data-lucide]"),
+    });
+  }
+
+  // Animação de entrada
+  requestAnimationFrame(() => {
+    modal.classList.remove("opacity-0");
+    if (modalContent) modalContent.classList.remove("scale-95", "opacity-0");
+    if (modalContent) modalContent.classList.add("scale-100", "opacity-100");
+  });
+
+  const closeModal = (callback) => {
+    if (modalContent) modalContent.classList.remove("scale-100", "opacity-100");
+    if (modalContent) modalContent.classList.add("scale-95", "opacity-0");
+    modal.classList.add("opacity-0");
+
+    modal.addEventListener(
+      "transitionend",
+      () => {
+        modal.remove();
+        if (callback && typeof callback === "function") {
+          callback();
+        }
+      },
+      { once: true }
+    );
+  };
+
+  modal
+    .querySelector(".modal-confirm-btn-confirm")
+    .addEventListener("click", () => {
+      closeModal(onConfirm);
+    });
+
+  modal
+    .querySelector(".modal-cancel-btn-confirm")
+    .addEventListener("click", () => {
+      closeModal(onCancel);
+    });
+
+  modal
+    .querySelector(".modal-close-btn-confirm")
+    .addEventListener("click", () => {
+      closeModal(onCancel);
+    });
+
+  // Fechar ao clicar fora do conteúdo do modal
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeModal(onCancel);
+    }
+  });
 }
