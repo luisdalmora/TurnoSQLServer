@@ -56,13 +56,13 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT); //
 
 // Para produção, comente as linhas acima e descomente as abaixo:
-/*
+
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 // Certifique-se de que o diretório e o arquivo de log são graváveis pelo servidor web.
 ini_set('error_log', __DIR__ . '/../../php_errors.log'); // Ajuste o caminho se necessário (ex: fora da pasta web)
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
-*/
+
 // --- Configuração de Backup SQL Server ---
 // Caminho no SERVIDOR SQL onde os arquivos .bak serão salvos.
 // O serviço do SQL Server DEVE ter permissão de escrita neste diretório.
