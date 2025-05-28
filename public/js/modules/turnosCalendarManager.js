@@ -48,15 +48,15 @@ export function renderTurnosCalendar(
   calendarContainer.innerHTML = "";
 
   const table = document.createElement("table");
-  table.className = "min-w-full border-collapse border border-gray-300";
+  table.className = "min-w-full border-collapse border border-slate-300"; // Borda mais suave
 
   const thead = table.createTHead();
   const headerRow = thead.insertRow();
-  headerRow.className = "bg-gray-100";
+  headerRow.className = "bg-slate-100"; // Fundo suave para header do calendário
   DIAS_SEMANA.forEach((dia) => {
     const th = document.createElement("th");
     th.className =
-      "p-2 border border-gray-300 text-xs sm:text-sm font-medium text-gray-600 uppercase";
+      "p-1 border border-slate-300 text-[0.65rem] sm:text-xs font-medium text-slate-600 uppercase";
     th.textContent = dia;
     headerRow.appendChild(th);
   });
@@ -83,7 +83,6 @@ export function renderTurnosCalendar(
   if (Array.isArray(ausenciasData)) {
     ausenciasData.forEach((ausencia) => {
       if (ausencia.data_inicio && ausencia.data_fim) {
-        // Adiciona T00:00:00 para garantir que as datas sejam tratadas como locais e não UTC.
         const inicioAusencia = new Date(ausencia.data_inicio + "T00:00:00");
         const fimAusencia = new Date(ausencia.data_fim + "T00:00:00");
 
@@ -103,7 +102,7 @@ export function renderTurnosCalendar(
               eventosPorDia[diaAusencia].push({
                 ...ausencia,
                 type: "ausencia",
-                data_evento: dataCorrente.toISOString().split("T")[0], // Data específica do dia no calendário
+                data_evento: dataCorrente.toISOString().split("T")[0],
               });
             }
           }
@@ -125,22 +124,22 @@ export function renderTurnosCalendar(
     for (let j = 0; j < 7; j++) {
       const cell = weekRow.insertCell();
       cell.className =
-        "p-1.5 border border-gray-200 h-28 sm:h-32 align-top relative";
+        "p-1 border border-slate-200 h-20 align-top relative text-[0.7rem]"; // h-20 para célula compacta
 
       if (i === 0 && j < startingDayOfWeek) {
-        cell.classList.add("bg-gray-50");
+        cell.classList.add("bg-slate-50");
       } else if (currentDay <= daysInCurrentMonth) {
         cell.classList.add("bg-white");
         const dayNumberDiv = document.createElement("div");
         dayNumberDiv.className =
-          "text-xs sm:text-sm font-medium text-gray-700 mb-1 text-right";
+          "text-[0.65rem] sm:text-xs font-medium text-slate-700 text-right mb-0.5";
         dayNumberDiv.textContent = currentDay;
         cell.appendChild(dayNumberDiv);
 
         if (eventosPorDia[currentDay]) {
           const eventosListDiv = document.createElement("div");
           eventosListDiv.className =
-            "space-y-1 overflow-y-auto max-h-[calc(6rem-1.5rem)] sm:max-h-[calc(7rem-1.75rem)] text-xs";
+            "space-y-0.5 overflow-y-auto max-h-12 text-[0.65rem] leading-tight custom-scrollbar-thin";
 
           eventosPorDia[currentDay].sort((a, b) => {
             if (a.type === "turno" && b.type !== "turno") return -1;
@@ -148,80 +147,91 @@ export function renderTurnosCalendar(
             if (a.type === "turno" && b.type === "turno") {
               return (a.hora_inicio || "").localeCompare(b.hora_inicio || "");
             }
-            // Para ausências, pode ordenar por nome ou observação se necessário
             return (a.colaborador_nome || a.observacoes || "").localeCompare(
               b.colaborador_nome || b.observacoes || ""
             );
           });
 
-          eventosPorDia[currentDay].forEach((evento) => {
-            const eventoDiv = document.createElement("div");
-            let displayColaborador = "";
-            let titleText = "";
+          const maxEventosVisiveisPorDia = 2;
+          eventosPorDia[currentDay]
+            .slice(0, maxEventosVisiveisPorDia)
+            .forEach((evento) => {
+              const eventoDiv = document.createElement("div");
+              let displayColaborador = "";
+              let titleText = "";
 
-            if (evento.type === "turno") {
-              eventoDiv.className =
-                "bg-blue-100 text-blue-800 p-1 rounded truncate hover:whitespace-normal hover:overflow-visible hover:z-10 hover:relative";
-              displayColaborador = evento.colaborador || "N/D";
-              titleText = `${evento.hora_inicio || ""} - ${
-                evento.hora_fim || ""
-              }\n${evento.colaborador}`;
-              if (displayColaborador.length > 12) {
-                displayColaborador =
-                  displayColaborador.substring(0, 10) + "...";
+              if (evento.type === "turno") {
+                eventoDiv.className =
+                  "bg-sky-100 text-sky-700 p-0.5 rounded truncate text-[0.6rem]"; // Cor suave
+                displayColaborador = evento.colaborador || "N/D";
+                titleText = `${
+                  evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : ""
+                } - ${
+                  evento.hora_fim ? evento.hora_fim.substring(0, 5) : ""
+                }\n${evento.colaborador}`;
+
+                eventoDiv.innerHTML = `
+                <span class="font-medium">${
+                  evento.hora_inicio ? evento.hora_inicio.substring(0, 5) : ""
+                }</span>
+                <span class="block truncate" title="${
+                  evento.colaborador
+                }">${displayColaborador.substring(0, 8)}${
+                  displayColaborador.length > 8 ? "..." : ""
+                }</span>`;
+              } else if (evento.type === "ausencia") {
+                eventoDiv.className =
+                  "bg-orange-100 text-orange-700 p-0.5 rounded truncate text-[0.6rem]"; // Cor para ausência
+                displayColaborador = evento.colaborador_nome || "Ausência";
+                let obsText = evento.observacoes ? evento.observacoes : "";
+                titleText = `${displayColaborador}${
+                  obsText ? "\n(" + obsText + ")" : ""
+                }`;
+
+                eventoDiv.innerHTML = `
+                <span class="flex items-center" title="${titleText}">
+                  <i data-lucide="user-x" class="w-2.5 h-2.5 inline-block mr-0.5 flex-shrink-0"></i>
+                  <span class="truncate">${displayColaborador.substring(0, 8)}${
+                  displayColaborador.length > 8 ? "..." : ""
+                }</span>
+                </span>`;
               }
-              eventoDiv.innerHTML = `
-                                <span class="font-medium">${
-                                  evento.hora_inicio
-                                    ? evento.hora_inicio.substring(0, 5)
-                                    : ""
-                                }</span>
-                                <span class="block text-[0.7rem] leading-tight">${displayColaborador}</span>
-                            `;
-            } else if (evento.type === "ausencia") {
-              eventoDiv.className =
-                "bg-orange-100 text-orange-800 p-1 rounded truncate hover:whitespace-normal hover:overflow-visible hover:z-10 hover:relative";
-              displayColaborador = evento.colaborador_nome || "Ausência";
-              let obs = evento.observacoes
-                ? ` (${
-                    evento.observacoes.substring(0, 15) +
-                    (evento.observacoes.length > 15 ? "..." : "")
-                  })`
-                : "";
-              titleText = `${displayColaborador}${obs}`;
-              if (displayColaborador.length > 12) {
-                displayColaborador =
-                  displayColaborador.substring(0, 10) + "...";
-              }
-              eventoDiv.innerHTML = `
-                                <i data-lucide="user-x" class="w-3 h-3 inline-block mr-1"></i>
-                                <span class="font-medium">${displayColaborador}</span>
-                                ${
-                                  obs
-                                    ? `<span class="block text-[0.7rem] leading-tight">${obs}</span>`
-                                    : ""
-                                }
-                            `;
-              if (typeof lucide !== "undefined") {
-                const iconEl = eventoDiv.querySelector("i[data-lucide]");
-                if (iconEl) lucide.createIcons({ nodes: [iconEl] });
-              }
-            }
-            eventoDiv.title = titleText;
-            eventosListDiv.appendChild(eventoDiv);
-          });
+              eventoDiv.setAttribute("data-tooltip-text", titleText);
+              eventosListDiv.appendChild(eventoDiv);
+            });
+
+          if (eventosPorDia[currentDay].length > maxEventosVisiveisPorDia) {
+            const maisEventosDiv = document.createElement("div");
+            maisEventosDiv.className =
+              "text-center text-[0.6rem] text-slate-500 mt-0.5";
+            maisEventosDiv.textContent = `+${
+              eventosPorDia[currentDay].length - maxEventosVisiveisPorDia
+            } mais`;
+            eventosListDiv.appendChild(maisEventosDiv);
+          }
+
           cell.appendChild(eventosListDiv);
+          if (typeof lucide !== "undefined") {
+            lucide.createIcons({
+              nodes: cell.querySelectorAll("i[data-lucide]"),
+            });
+          }
         }
         currentDay++;
       } else {
-        cell.classList.add("bg-gray-50");
+        cell.classList.add("bg-slate-50");
       }
     }
   }
   calendarContainer.appendChild(table);
-  // Não é necessário chamar createIcons aqui, pois os ícones dentro do loop já são processados.
+
+  if (typeof initTooltips === "function") {
+    // Garante que initTooltips seja definida
+    initTooltips();
+  }
 }
 
 export function initTurnosCalendar() {
   console.log("[DEBUG] Módulo de Calendário de Turnos inicializado/pronto.");
+  // Estilos para scrollbar fina já estão no header.php
 }

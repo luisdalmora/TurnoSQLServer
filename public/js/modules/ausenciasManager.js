@@ -1,4 +1,4 @@
-// src/js/modules/ausenciasManager.js
+// public/js/modules/ausenciasManager.js
 import {
   showToast,
   popularSelectColaborador,
@@ -7,7 +7,7 @@ import {
   tailwindCheckboxClasses,
   buscarEArmazenarColaboradores,
   todosOsColaboradores as colaboradoresGlobais,
-  showConfirmationModal, // Adicionada importação
+  showConfirmationModal,
 } from "./utils.js";
 import * as state from "./state.js";
 import { initTooltips } from "./tooltipManager.js";
@@ -17,15 +17,15 @@ console.log("[DEBUG] ausenciasManager.js: Módulo carregado.");
 const IS_USER_ADMIN_AUSENCIAS = window.APP_USER_ROLE === "admin";
 
 async function popularTabelaAusencias(ausencias) {
-  console.log(
-    "[DEBUG] popularTabelaAusencias (ausenciasManager.js) chamada. Admin: " +
-      IS_USER_ADMIN_AUSENCIAS
-  );
+  // console.log(
+  //   "[DEBUG] popularTabelaAusencias (ausenciasManager.js) chamada. Admin: " +
+  //     IS_USER_ADMIN_AUSENCIAS
+  // );
   const corpoTabela = document.querySelector("#ausencias-table-main tbody");
   if (!corpoTabela) {
-    console.error(
-      "[DEBUG] Tabela de ausências (tbody) não encontrada (ausenciasManager.js)."
-    );
+    // console.error(
+    //   "[DEBUG] Tabela de ausências (tbody) não encontrada (ausenciasManager.js)."
+    // );
     return;
   }
   corpoTabela.innerHTML = "";
@@ -45,14 +45,14 @@ async function popularTabelaAusencias(ausencias) {
     r.className = "bg-white";
     const c = r.insertCell();
     c.colSpan = IS_USER_ADMIN_AUSENCIAS ? 5 : 4;
-    c.className = "p-2 text-center text-gray-500 text-sm";
+    c.className = "p-2 text-center text-slate-500 text-sm"; // Cor suave
     c.textContent = "Nenhuma ausência registrada para este período.";
     return;
   }
 
   ausencias.forEach((item) => {
     const nLinha = corpoTabela.insertRow();
-    nLinha.className = "bg-white hover:bg-gray-50";
+    nLinha.className = "bg-white hover:bg-slate-50"; // Cor suave
     nLinha.setAttribute("data-ausencia-id", item.id);
 
     const cellCheckbox = nLinha.insertCell();
@@ -60,7 +60,7 @@ async function popularTabelaAusencias(ausencias) {
     if (IS_USER_ADMIN_AUSENCIAS) {
       const inputCheckbox = document.createElement("input");
       inputCheckbox.type = "checkbox";
-      inputCheckbox.className = `ausencia-select-checkbox ${tailwindCheckboxClasses}`; //
+      inputCheckbox.className = `ausencia-select-checkbox ${tailwindCheckboxClasses}`;
       inputCheckbox.value = item.id;
       cellCheckbox.appendChild(inputCheckbox);
     } else {
@@ -71,7 +71,10 @@ async function popularTabelaAusencias(ausencias) {
     cellDataInicio.className = "p-1";
     const inputDataInicio = document.createElement("input");
     inputDataInicio.type = "date";
-    inputDataInicio.className = `ausencia-data-inicio ${tailwindInputClasses}`; //
+    inputDataInicio.className = `ausencia-data-inicio ${tailwindInputClasses
+      .replace("border-gray-300", "border-slate-300")
+      .replace("focus:ring-blue-500", "focus:ring-sky-500")
+      .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
     inputDataInicio.value = item.data_inicio || "";
     inputDataInicio.disabled = !IS_USER_ADMIN_AUSENCIAS;
     cellDataInicio.appendChild(inputDataInicio);
@@ -80,7 +83,10 @@ async function popularTabelaAusencias(ausencias) {
     cellDataFim.className = "p-1";
     const inputDataFim = document.createElement("input");
     inputDataFim.type = "date";
-    inputDataFim.className = `ausencia-data-fim ${tailwindInputClasses}`; //
+    inputDataFim.className = `ausencia-data-fim ${tailwindInputClasses
+      .replace("border-gray-300", "border-slate-300")
+      .replace("focus:ring-blue-500", "focus:ring-sky-500")
+      .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
     inputDataFim.value = item.data_fim || "";
     inputDataFim.disabled = !IS_USER_ADMIN_AUSENCIAS;
     cellDataFim.appendChild(inputDataFim);
@@ -88,7 +94,10 @@ async function popularTabelaAusencias(ausencias) {
     const cellColaborador = nLinha.insertCell();
     cellColaborador.className = "p-1";
     const selectColaborador = document.createElement("select");
-    selectColaborador.className = `ausencia-colaborador ${tailwindSelectClasses}`; //
+    selectColaborador.className = `ausencia-colaborador ${tailwindSelectClasses
+      .replace("border-gray-300", "border-slate-300")
+      .replace("focus:ring-blue-500", "focus:ring-sky-500")
+      .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
     popularSelectColaborador(
       selectColaborador,
       item.colaborador_nome,
@@ -101,19 +110,23 @@ async function popularTabelaAusencias(ausencias) {
     cellObs.className = "p-1";
     const inputObs = document.createElement("input");
     inputObs.type = "text";
-    inputObs.className = `ausencia-observacoes ${tailwindInputClasses}`; //
+    inputObs.className = `ausencia-observacoes ${tailwindInputClasses
+      .replace("border-gray-300", "border-slate-300")
+      .replace("focus:ring-blue-500", "focus:ring-sky-500")
+      .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
     inputObs.value = item.observacoes || "";
     inputObs.placeholder = "Motivo/Observações da ausência";
     inputObs.disabled = !IS_USER_ADMIN_AUSENCIAS;
     cellObs.appendChild(inputObs);
   });
-  console.log(
-    `[DEBUG] ${ausencias.length} ausência(s) populada(s) na tabela (ausenciasManager.js).`
-  );
+  // console.log(
+  //   `[DEBUG] ${ausencias.length} ausência(s) populada(s) na tabela (ausenciasManager.js).`
+  // );
   if (typeof initTooltips === "function") initTooltips();
 }
 
 function coletarDadosDaTabelaDeAusencias() {
+  // ... (código existente, sem alterações aqui)
   if (!IS_USER_ADMIN_AUSENCIAS) return [];
 
   const linhas = document.querySelectorAll("#ausencias-table-main tbody tr");
@@ -186,6 +199,7 @@ function coletarDadosDaTabelaDeAusencias() {
 }
 
 async function salvarDadosAusenciasNoServidor(dadosAusencias, csrfToken) {
+  // ... (código existente, sem alterações aqui)
   if (!IS_USER_ADMIN_AUSENCIAS) {
     showToast("Apenas administradores podem salvar ausências.", "error");
     return;
@@ -206,7 +220,6 @@ async function salvarDadosAusenciasNoServidor(dadosAusencias, csrfToken) {
   };
   try {
     const response = await fetch("api/gerenciar_ausencias.php", {
-      //
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -221,7 +234,8 @@ async function salvarDadosAusenciasNoServidor(dadosAusencias, csrfToken) {
         if (csrfInput) csrfInput.value = data.csrf_token;
       }
 
-      carregarAusenciasDoServidor(
+      await carregarAusenciasDoServidor(
+        // Adicionado await
         state.currentDisplayYearAusencias,
         state.currentDisplayMonthAusencias
       );
@@ -248,6 +262,7 @@ async function salvarDadosAusenciasNoServidor(dadosAusencias, csrfToken) {
 }
 
 async function excluirAusenciasNoServidor(ids, csrfToken) {
+  // ... (código existente, sem alterações aqui, mas chamadas a carregarAusenciasDoServidor devem ser awaited)
   if (!IS_USER_ADMIN_AUSENCIAS) {
     showToast("Apenas administradores podem excluir ausências.", "error");
     return;
@@ -257,10 +272,8 @@ async function excluirAusenciasNoServidor(ids, csrfToken) {
     showToast("Nenhum ID de ausência fornecido para exclusão.", "warning");
     return;
   }
-  // A confirmação agora é feita externamente por showConfirmationModal
   try {
     const response = await fetch("api/gerenciar_ausencias.php", {
-      //
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -278,7 +291,8 @@ async function excluirAusenciasNoServidor(ids, csrfToken) {
         const csrfInput = document.getElementById("csrf-token-ausencias");
         if (csrfInput) csrfInput.value = data.csrf_token;
       }
-      carregarAusenciasDoServidor(
+      await carregarAusenciasDoServidor(
+        // Adicionado await
         state.currentDisplayYearAusencias,
         state.currentDisplayMonthAusencias
       );
@@ -299,75 +313,74 @@ async function excluirAusenciasNoServidor(ids, csrfToken) {
 }
 
 export async function carregarAusenciasDoServidor(ano, mes) {
-  console.log(
-    `[DEBUG] carregarAusenciasDoServidor (ausenciasManager.js) chamado com ano: ${ano}, mes: ${mes}`
-  );
+  // console.log(
+  //   `[DEBUG] carregarAusenciasDoServidor (ausenciasManager.js) chamado com ano: ${ano}, mes: ${mes}`
+  // );
   const tableBody = document.querySelector("#ausencias-table-main tbody");
   const csrfTokenInput = document.getElementById("csrf-token-ausencias");
   if (!tableBody) {
-    console.error(
-      "[DEBUG] Corpo da tabela de ausências não encontrado. (ausenciasManager.js)"
-    );
-    return;
+    // console.error(
+    //   "[DEBUG] Corpo da tabela de ausências não encontrado. (ausenciasManager.js)"
+    // );
+    return []; // GARANTIR RETORNO DE ARRAY
   }
-  if (
-    IS_USER_ADMIN_AUSENCIAS &&
-    !csrfTokenInput &&
-    document.getElementById("save-ausencias-button")
-  ) {
-    console.warn(
-      "[DEBUG] Input CSRF para ausências não encontrado, mas o botão de salvar existe. (ausenciasManager.js)"
-    );
-  }
-
+  // ... (restante da lógica de carregamento do placeholder) ...
   tableBody.innerHTML = `<tr><td colspan="${
     IS_USER_ADMIN_AUSENCIAS ? 5 : 4
-  }" class="p-2 text-center text-gray-500 text-sm">Carregando ausências (${mes}/${ano})... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
+  }" class="p-2 text-center text-slate-500 text-sm">Carregando ausências (${mes}/${ano})... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
   if (typeof lucide !== "undefined")
     lucide.createIcons({ nodes: [tableBody.querySelector("i")] });
 
-  const url = `api/gerenciar_ausencias.php?ano=${ano}&mes=${mes}`; //
+  const url = `api/gerenciar_ausencias.php?ano=${ano}&mes=${mes}`;
   try {
     const response = await fetch(url);
     let data = await response.json();
     if (!response.ok)
       throw new Error(data.message || `Erro HTTP: ${response.status}`);
+
+    const ausenciasCarregadas = data.data || []; // Certifica que é um array
+
     if (data.success) {
       if (IS_USER_ADMIN_AUSENCIAS && csrfTokenInput && data.csrf_token) {
         csrfTokenInput.value = data.csrf_token;
       }
-      if (colaboradoresGlobais.length === 0) {
+      if (colaboradoresGlobais.length === 0 && ausenciasCarregadas.length > 0) {
+        // Só busca se precisar
         await buscarEArmazenarColaboradores();
       }
-      popularTabelaAusencias(data.data || []);
+      await popularTabelaAusencias(ausenciasCarregadas); // popularTabelaAusencias é async
+      return ausenciasCarregadas; // RETORNA OS DADOS
     } else {
       showToast(
         "Aviso: " + (data.message || "Não foi possível carregar ausências."),
         "warning"
       );
-      popularTabelaAusencias([]);
+      await popularTabelaAusencias([]);
+      return []; // RETORNA ARRAY VAZIO
     }
   } catch (error) {
-    console.error(
-      `[DEBUG] Erro ao carregar ausências para ${mes}/${ano} (ausenciasManager.js):`,
-      error
-    );
+    // console.error(
+    //   `[DEBUG] Erro ao carregar ausências para ${mes}/${ano} (ausenciasManager.js):`,
+    //   error
+    // );
     showToast(
-      `Erro ao carregar ausências: ${error.message}. Verifique o console.`,
+      `Erro ao carregar ausências: ${error.message}.`, // Removido Verifique o console
       "error"
     );
-    popularTabelaAusencias([]);
+    await popularTabelaAusencias([]);
+    return []; // RETORNA ARRAY VAZIO
   }
 }
 
 export function initAusenciasEventListeners() {
+  // ... (código existente com await nas chamadas de carregarAusenciasDoServidor)
   const btnAddAusencia = document.getElementById("add-ausencia-row-button");
   if (btnAddAusencia) {
     if (IS_USER_ADMIN_AUSENCIAS) {
       btnAddAusencia.addEventListener("click", async function () {
-        console.log(
-          "[DEBUG] Botão 'Adicionar Ausência' clicado (ausenciasManager.js)."
-        );
+        // console.log(
+        //   "[DEBUG] Botão 'Adicionar Ausência' clicado (ausenciasManager.js)."
+        // );
         const tbody = document.querySelector("#ausencias-table-main tbody");
         if (!tbody) return;
 
@@ -385,7 +398,7 @@ export function initAusenciasEventListeners() {
         }
         const newId = "new-" + Date.now();
         const nLinha = tbody.insertRow();
-        nLinha.className = "bg-white hover:bg-gray-50";
+        nLinha.className = "bg-white hover:bg-slate-50";
         nLinha.setAttribute("data-ausencia-id", newId);
 
         let cell;
@@ -395,7 +408,10 @@ export function initAusenciasEventListeners() {
         if (IS_USER_ADMIN_AUSENCIAS) {
           let inputChk = document.createElement("input");
           inputChk.type = "checkbox";
-          inputChk.className = `ausencia-select-checkbox ${tailwindCheckboxClasses}`; //
+          inputChk.className = `ausencia-select-checkbox ${tailwindCheckboxClasses
+            .replace("text-indigo-600", "text-sky-600")
+            .replace("focus:ring-indigo-500", "focus:ring-sky-500")
+            .replace("border-gray-300", "border-slate-300")}`;
           inputChk.value = newId;
           cell.appendChild(inputChk);
         } else {
@@ -406,7 +422,10 @@ export function initAusenciasEventListeners() {
         cell.className = "p-1";
         let inputDI = document.createElement("input");
         inputDI.type = "date";
-        inputDI.className = `ausencia-data-inicio ${tailwindInputClasses}`; //
+        inputDI.className = `ausencia-data-inicio ${tailwindInputClasses
+          .replace("border-gray-300", "border-slate-300")
+          .replace("focus:ring-blue-500", "focus:ring-sky-500")
+          .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
         inputDI.disabled = !IS_USER_ADMIN_AUSENCIAS;
         cell.appendChild(inputDI);
         if (IS_USER_ADMIN_AUSENCIAS) inputDI.focus();
@@ -415,14 +434,20 @@ export function initAusenciasEventListeners() {
         cell.className = "p-1";
         let inputDF = document.createElement("input");
         inputDF.type = "date";
-        inputDF.className = `ausencia-data-fim ${tailwindInputClasses}`; //
+        inputDF.className = `ausencia-data-fim ${tailwindInputClasses
+          .replace("border-gray-300", "border-slate-300")
+          .replace("focus:ring-blue-500", "focus:ring-sky-500")
+          .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
         inputDF.disabled = !IS_USER_ADMIN_AUSENCIAS;
         cell.appendChild(inputDF);
 
         cell = nLinha.insertCell();
         cell.className = "p-1";
         const selColabAusencia = document.createElement("select");
-        selColabAusencia.className = `ausencia-colaborador ${tailwindSelectClasses}`; //
+        selColabAusencia.className = `ausencia-colaborador ${tailwindSelectClasses
+          .replace("border-gray-300", "border-slate-300")
+          .replace("focus:ring-blue-500", "focus:ring-sky-500")
+          .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
         popularSelectColaborador(selColabAusencia, null, colaboradoresGlobais);
         selColabAusencia.disabled = !IS_USER_ADMIN_AUSENCIAS;
         cell.appendChild(selColabAusencia);
@@ -431,7 +456,10 @@ export function initAusenciasEventListeners() {
         cell.className = "p-1";
         let inputObs = document.createElement("input");
         inputObs.type = "text";
-        inputObs.className = `ausencia-observacoes ${tailwindInputClasses}`; //
+        inputObs.className = `ausencia-observacoes ${tailwindInputClasses
+          .replace("border-gray-300", "border-slate-300")
+          .replace("focus:ring-blue-500", "focus:ring-sky-500")
+          .replace("focus:border-indigo-500", "focus:border-sky-500")}`;
         inputObs.placeholder = "Motivo/Observações";
         inputObs.disabled = !IS_USER_ADMIN_AUSENCIAS;
         cell.appendChild(inputObs);
@@ -439,17 +467,18 @@ export function initAusenciasEventListeners() {
         if (typeof initTooltips === "function") initTooltips();
       });
     } else {
-      btnAddAusencia.style.display = "none";
+      if (btnAddAusencia) btnAddAusencia.style.display = "none";
     }
   }
 
   const btnSalvarAusencias = document.getElementById("save-ausencias-button");
   if (btnSalvarAusencias) {
     if (IS_USER_ADMIN_AUSENCIAS) {
-      btnSalvarAusencias.addEventListener("click", () => {
-        console.log(
-          "[DEBUG] Botão 'Salvar Ausências' clicado (ausenciasManager.js)."
-        );
+      btnSalvarAusencias.addEventListener("click", async () => {
+        // Adicionado async
+        // console.log(
+        //   "[DEBUG] Botão 'Salvar Ausências' clicado (ausenciasManager.js)."
+        // );
         const csrfTokenEl = document.getElementById("csrf-token-ausencias");
         const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
         if (!csrfToken) {
@@ -461,7 +490,7 @@ export function initAusenciasEventListeners() {
         }
         const dados = coletarDadosDaTabelaDeAusencias();
         if (dados && dados.length > 0) {
-          salvarDadosAusenciasNoServidor(dados, csrfToken);
+          await salvarDadosAusenciasNoServidor(dados, csrfToken); // Adicionado await
         } else if (dados && dados.length === 0) {
           const tbody = document.querySelector("#ausencias-table-main tbody");
           const placeholderVisivel =
@@ -475,9 +504,9 @@ export function initAusenciasEventListeners() {
             );
           }
         } else if (dados === null) {
-          console.log(
-            "[DEBUG] Coleta de dados de ausências retornou null (erro de validação)."
-          );
+          // console.log(
+          //   "[DEBUG] Coleta de dados de ausências retornou null (erro de validação)."
+          // );
         }
       });
     } else {
@@ -506,9 +535,9 @@ export function initAusenciasEventListeners() {
   if (btnDelSelAus) {
     if (IS_USER_ADMIN_AUSENCIAS) {
       btnDelSelAus.addEventListener("click", () => {
-        console.log(
-          "[DEBUG] Botão 'Excluir Ausências Selecionadas' clicado (ausenciasManager.js)."
-        );
+        // console.log(
+        //   "[DEBUG] Botão 'Excluir Ausências Selecionadas' clicado (ausenciasManager.js)."
+        // );
         const csrfTokenEl = document.getElementById("csrf-token-ausencias");
         const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
         if (!csrfToken) {
@@ -562,10 +591,13 @@ export function initAusenciasEventListeners() {
 
         showConfirmationModal(
           confirmMessageAus,
-          () => {
-            // Ação de confirmação
+          async () => {
+            // Adicionado async
             if (idsParaExcluirServidor.length > 0) {
-              excluirAusenciasNoServidor(idsParaExcluirServidor, csrfToken);
+              await excluirAusenciasNoServidor(
+                idsParaExcluirServidor,
+                csrfToken
+              ); // Adicionado await
             }
             if (linhasNovasRemovidasLocalmente > 0) {
               linhasParaRemoverLocalmente.forEach((tr) => tr.remove());
@@ -577,7 +609,7 @@ export function initAusenciasEventListeners() {
                 "#ausencias-table-main tbody"
               );
               if (tbody && tbody.rows.length === 0) {
-                popularTabelaAusencias([]);
+                await popularTabelaAusencias([]); // Adicionado await
               }
             }
             if (chkAllAusenciasCurrent) chkAllAusenciasCurrent.checked = false;

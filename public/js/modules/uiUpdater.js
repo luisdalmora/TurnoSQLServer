@@ -78,7 +78,10 @@ export function updateEscalaSabadosDisplay() {
       nomesMeses[state.currentDisplayMonthEscalaSabados] ||
       `Mês ${state.currentDisplayMonthEscalaSabados}`;
     displayElement.innerHTML = `<i data-lucide="calendar-check" class="w-4 h-4 mr-2 text-blue-600"></i> Escala - Sábados (${monthName} ${state.currentDisplayYearEscalaSabados})`;
-    if (typeof lucide !== "undefined") lucide.createIcons();
+    if (typeof lucide !== "undefined")
+      lucide.createIcons({
+        nodes: [displayElement.querySelector("i[data-lucide]")],
+      });
   }
 }
 

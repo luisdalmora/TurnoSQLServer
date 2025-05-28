@@ -9,3 +9,20 @@
     @apply opacity-100 visible scale-100;
   }
 }
+@layer utilities {
+  .custom-scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f1f1; /* ou theme('colors.slate.200') */
+    border-radius: 10px;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #c1c1c1; /* ou theme('colors.slate.400') */
+    border-radius: 10px;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1; /* ou theme('colors.slate.500') */
+  }
+}
