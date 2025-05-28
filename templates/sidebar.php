@@ -4,8 +4,8 @@ $csrfTokenBackup = $_SESSION['csrf_token_backup'] ?? '';
 $currentPage = $currentPage ?? ''; 
 ?>
 <aside id="app-sidebar" class="w-64 bg-gradient-to-b from-slate-800 to-slate-700 text-slate-100 flex flex-col flex-shrink-0 
-                             mobile-sidebar md:flex md:static md:translate-x-0 transition-transform duration-300 ease-in-out"> 
-    <div class="h-16 flex items-center px-4 md:px-6 border-b border-slate-500/50"> 
+                             mobile-sidebar md:flex md:static md:translate-x-0 transition-transform duration-300 ease-in-out">
+    <div class="h-16 flex items-center px-4 md:px-6 border-b border-slate-500/50">
         <i data-lucide="gauge-circle" class="w-7 h-7 md:w-8 md:h-8 mr-2 md:mr-3 text-white" data-tooltip-text="Painel Sim Posto"></i>
         <h2 class="text-lg md:text-xl font-semibold text-white">Sim Posto</h2>
     </div>
@@ -46,24 +46,21 @@ $currentPage = $currentPage ?? '';
         </a>
         <?php endif; ?>
 
-        <a href="<?php echo BASE_URL; ?>/gerador_senhas.php"
-           class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 ease-in-out text-sm 
-                  <?php echo ($currentPage === 'gerador_senhas') ? 'bg-sky-600 text-white font-medium shadow-md scale-105' : 'hover:bg-slate-600 hover:text-white hover:scale-105 active:scale-100'; ?>"
-           data-tooltip-text="Gerar Senhas">
-            <i data-lucide="key-round" class="w-5 h-5 mr-3"></i> Gerador de Senhas
-        </a>
-    </nav>
+        </nav>
     <div class="p-2 border-t border-slate-500/50">
          <div class="px-2 py-1 space-y-1.5">
             <?php if (can('executar', 'backup') && !empty($csrfTokenBackup)): ?>
                 <input type="hidden" id="csrf-token-backup" value="<?php echo htmlspecialchars($csrfTokenBackup); ?>">
-                <a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Realizar Backup do Banco de Dados"> 
+                <a href="#" id="backup-db-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Realizar Backup do Banco de Dados">
                     <i data-lucide="database-backup" class="w-4 h-4 mr-2"></i> Backup BD
                 </a>
             <?php endif; ?>
+           <button type="button" id="open-password-generator-modal-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Gerar Senha Segura">
+                <i data-lucide="key-round" class="w-4 h-4 mr-2"></i> Gerar Senha
+            </button>
         </div>
         <div class="px-2 py-1 mt-1.5">
-            <a href="<?php echo BASE_URL; ?>/logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Sair do Sistema"> 
+            <a href="<?php echo BASE_URL; ?>/logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Sair do Sistema">
                 <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Sair
             </a>
         </div>

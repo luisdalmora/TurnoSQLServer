@@ -12,6 +12,7 @@ import {
   initTurnosCalendar,
 } from "./modules/turnosCalendarManager.js";
 import * as tabsManager from "./modules/tabsManager.js";
+import { initPasswordGeneratorModal } from "./modules/passwordGeneratorModal.js"; // Para o modal do gerador
 
 console.log("[DEBUG] main.js: Módulo principal carregado.");
 
@@ -32,22 +33,27 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
       false
     );
   }
+  turnosDoMes = Array.isArray(turnosDoMes) ? turnosDoMes : []; // Garantia
+
   if (document.getElementById("tab-content-ausencias")) {
     ausenciasDoMes = await ausenciasManager.carregarAusenciasDoServidor(
       state.currentDisplayYearAusencias,
       state.currentDisplayMonthAusencias
     );
   } else if (document.getElementById("turnos-calendar-view-container")) {
+    // Se a aba de ausências não existir, mas o calendário sim, carrega para o calendário
     if (!document.getElementById("tab-content-ausencias")) {
       ausenciasDoMes = await ausenciasManager.carregarAusenciasDoServidor(
-        state.currentDisplayYear,
+        state.currentDisplayYear, // Usa data global para o calendário
         state.currentDisplayMonth
       );
     }
   }
+  ausenciasDoMes = Array.isArray(ausenciasDoMes) ? ausenciasDoMes : []; // Garantia
 
+  // Se a aba de turnos não carregou os turnos (ex: não está na página), mas o calendário está, carrega para o calendário.
   if (
-    (!turnosDoMes || turnosDoMes.length === 0) &&
+    turnosDoMes.length === 0 &&
     document.getElementById("turnos-calendar-view-container") &&
     !document.getElementById("tab-content-turnos")
   ) {
@@ -56,22 +62,15 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
       state.currentDisplayMonth,
       false
     );
+    turnosDoMes = Array.isArray(turnosDoMes) ? turnosDoMes : []; // Garantia
   }
-
-  // Garantir que são arrays antes de passar para renderTurnosCalendar
-  const finalTurnosParaCalendario = Array.isArray(turnosDoMes)
-    ? turnosDoMes
-    : [];
-  const finalAusenciasParaCalendario = Array.isArray(ausenciasDoMes)
-    ? ausenciasDoMes
-    : [];
 
   if (document.getElementById("turnos-calendar-view-container")) {
     renderTurnosCalendar(
       state.currentDisplayYear,
       state.currentDisplayMonth,
-      finalTurnosParaCalendario,
-      finalAusenciasParaCalendario
+      turnosDoMes, // Já garantido como array
+      ausenciasDoMes // Já garantido como array
     );
     const calendarPeriodSpan = document.getElementById("calendar-view-period");
     if (calendarPeriodSpan) {
@@ -126,17 +125,75 @@ function initMobileMenu() {
     const sidebarLinks = sidebar.querySelectorAll("a");
     sidebarLinks.forEach((link) => {
       link.addEventListener("click", function () {
-        if (sidebar.classList.contains("open")) {
+        if (
+          sidebar.classList.contains("open") &&
+          window.getComputedStyle(menuButton).display !== "none"
+        ) {
           sidebar.classList.remove("open");
           overlay.classList.remove("open");
         }
       });
     });
-  } else {
-    // Comentado para não poluir console se elementos não existirem em todas as páginas
-    // if (!sidebar) console.warn('Elemento da sidebar (#app-sidebar) não encontrado para menu mobile.');
-    // if (!menuButton) console.warn('Botão do menu mobile (#mobile-menu-button) não encontrado.');
-    // if (!overlay) console.warn('Overlay da sidebar (#sidebar-overlay) não encontrado.');
+  }
+}
+
+function initPasswordGeneratorModalControls() {
+  const openModalBtn = document.getElementById(
+    "open-password-generator-modal-btn"
+  );
+  const closeModalBtn = document.getElementById(
+    "close-password-generator-modal-btn"
+  );
+  const modalBackdrop = document.getElementById(
+    "password-generator-modal-backdrop"
+  );
+  const modalContent = document.getElementById(
+    "password-generator-modal-content"
+  );
+
+  const openModal = () => {
+    if (modalBackdrop && modalContent) {
+      modalBackdrop.classList.remove("hidden");
+      setTimeout(() => {
+        modalBackdrop.classList.remove("opacity-0");
+        modalContent.classList.remove("opacity-0", "scale-95");
+        modalContent.classList.add("opacity-100", "scale-100");
+      }, 10);
+      // Chama a função de inicialização do gerador (que também gera uma senha)
+      if (typeof initPasswordGeneratorModal === "function") {
+        initPasswordGeneratorModal();
+      }
+      if (typeof lucide !== "undefined") {
+        lucide.createIcons({
+          nodes: modalContent.querySelectorAll("i[data-lucide]"),
+        });
+      }
+    }
+  };
+
+  const closeModal = () => {
+    if (modalBackdrop && modalContent) {
+      modalBackdrop.classList.add("opacity-0");
+      modalContent.classList.add("opacity-0", "scale-95");
+      modalContent.classList.remove("opacity-100", "scale-100");
+      setTimeout(() => {
+        modalBackdrop.classList.add("hidden");
+      }, 300);
+    }
+  };
+
+  if (openModalBtn && modalBackdrop) {
+    openModalBtn.addEventListener("click", openModal);
+  }
+  if (closeModalBtn && modalBackdrop) {
+    closeModalBtn.addEventListener("click", closeModal);
+  }
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener("click", function (event) {
+      if (event.target === modalBackdrop) {
+        closeModal();
+      }
+    });
   }
 }
 
@@ -170,6 +227,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (typeof initTooltips === "function") initTooltips();
   initMobileMenu();
+  initPasswordGeneratorModalControls(); // Inicializa controles do modal do gerador
 
   await utils.buscarEArmazenarColaboradores();
 
@@ -189,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       false
     );
   }
-  turnosIniciais = Array.isArray(turnosIniciais) ? turnosIniciais : []; // Garantia extra
+  turnosIniciais = Array.isArray(turnosIniciais) ? turnosIniciais : [];
 
   if (document.getElementById("tab-content-ausencias")) {
     ausenciasManager.initAusenciasEventListeners();
@@ -199,16 +257,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
     ausenciasIniciaisParaCalendario = Array.isArray(ausenciasParaAba)
       ? ausenciasParaAba
-      : []; // Garantia
+      : [];
   } else {
-    // Se a aba de ausências não existe, carrega para o calendário (se ele existir)
-    ausenciasIniciaisParaCalendario = []; // Inicializa se não foi pela aba
+    ausenciasIniciaisParaCalendario = [];
   }
   ausenciasIniciaisParaCalendario = Array.isArray(
     ausenciasIniciaisParaCalendario
   )
     ? ausenciasIniciaisParaCalendario
-    : []; // Garantia
+    : [];
 
   if (document.getElementById("feriados-table")) {
     await widgetsDashboard.carregarFeriados(
@@ -233,7 +290,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     let turnosCal = turnosIniciais;
     let ausenciasCal = ausenciasIniciaisParaCalendario;
 
-    // Se os dados de turnos não foram carregados pela aba (porque a aba não existe)
     if (
       turnosCal.length === 0 &&
       !document.getElementById("tab-content-turnos")
@@ -245,11 +301,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       );
       turnosCal = Array.isArray(turnosCal) ? turnosCal : [];
     }
-    // Se os dados de ausências não foram carregados pela aba ou se a data do calendário é diferente
+
     if (
       ausenciasCal.length === 0 ||
-      state.currentDisplayYear !== state.currentDisplayYearAusencias ||
-      state.currentDisplayMonth !== state.currentDisplayMonthAusencias
+      ((state.currentDisplayYear !== state.currentDisplayYearAusencias ||
+        state.currentDisplayMonth !== state.currentDisplayMonthAusencias) &&
+        !document.getElementById("tab-content-ausencias"))
     ) {
       ausenciasCal = await ausenciasManager.carregarAusenciasDoServidor(
         state.currentDisplayYear,
@@ -281,6 +338,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (typeof initTooltips === "function") initTooltips();
 
+  // Navegação de Mês Global (Turnos na Aba e Calendário compartilham este)
   const prevMonthButton = document.getElementById("prev-month-button");
   if (prevMonthButton) {
     prevMonthButton.addEventListener("click", () => {
@@ -290,7 +348,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         nm = 12;
         ny--;
       }
-      syncDatesAndReloadAll(ny, nm);
+      syncDatesAndReloadAll(ny, nm); // Sincroniza todas as datas e recarrega tudo
     });
   }
   const nextMonthButton = document.getElementById("next-month-button");
@@ -302,16 +360,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         nm = 1;
         ny++;
       }
-      syncDatesAndReloadAll(ny, nm);
+      syncDatesAndReloadAll(ny, nm); // Sincroniza todas as datas e recarrega tudo
     });
   }
 
+  // Navegação de Mês para a Aba de Ausências (independente)
   const prevMonthBtnAus = document.getElementById(
     "prev-month-ausencias-button"
   );
   if (prevMonthBtnAus) {
     prevMonthBtnAus.addEventListener("click", async () => {
-      // Adicionado async
       let nm = state.currentDisplayMonthAusencias - 1,
         ny = state.currentDisplayYearAusencias;
       if (nm < 1) {
@@ -321,7 +379,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       state.setAusenciasDate(ny, nm);
       uiUpdater.updateCurrentMonthYearDisplayAusencias();
       if (document.getElementById("tab-content-ausencias")) {
-        await ausenciasManager.carregarAusenciasDoServidor(ny, nm); // Adicionado await
+        await ausenciasManager.carregarAusenciasDoServidor(ny, nm);
       }
     });
   }
@@ -330,7 +388,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   );
   if (nextMonthBtnAus) {
     nextMonthBtnAus.addEventListener("click", async () => {
-      // Adicionado async
       let nm = state.currentDisplayMonthAusencias + 1,
         ny = state.currentDisplayYearAusencias;
       if (nm > 12) {
@@ -340,7 +397,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       state.setAusenciasDate(ny, nm);
       uiUpdater.updateCurrentMonthYearDisplayAusencias();
       if (document.getElementById("tab-content-ausencias")) {
-        await ausenciasManager.carregarAusenciasDoServidor(ny, nm); // Adicionado await
+        await ausenciasManager.carregarAusenciasDoServidor(ny, nm);
       }
     });
   }
@@ -374,7 +431,6 @@ window.atualizarCalendarioGeral = async (
   let ausenciasParaCalendario = Array.isArray(ausencias) ? ausencias : [];
 
   if (turnos === null) {
-    // Só recarrega se for explicitamente null
     turnosParaCalendario = await turnosManager.carregarTurnosDoServidor(
       year,
       month,
@@ -386,7 +442,6 @@ window.atualizarCalendarioGeral = async (
   }
 
   if (ausencias === null) {
-    // Só recarrega se for explicitamente null
     ausenciasParaCalendario =
       await ausenciasManager.carregarAusenciasDoServidor(year, month);
     ausenciasParaCalendario = Array.isArray(ausenciasParaCalendario)
