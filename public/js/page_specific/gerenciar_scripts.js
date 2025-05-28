@@ -1,5 +1,5 @@
-// src/js/page_specific/gerenciar_scripts.js
-import { showToast, showConfirmationModal } from "../modules/utils.js"; // <<< ADICIONAR showConfirmationModal
+// public/js/page_specific/gerenciar_scripts.js
+import { showToast, showConfirmationModal } from "../modules/utils.js";
 import { initTooltips } from "../modules/tooltipManager.js";
 
 const IS_USER_ADMIN_SCRIPTS = window.APP_USER_ROLE === "admin";
@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (btnLimparFormulario) btnLimparFormulario.style.display = "none";
     const sectionNovoScript = document
       .querySelector("form#form-novo-script")
-      ?.closest("section"); // Adicionado optional chaining
+      ?.closest("section");
     if (sectionNovoScript) sectionNovoScript.style.display = "none";
   }
 
@@ -80,11 +80,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <tr>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Atualizado em</th>
-                ${
-                  IS_USER_ADMIN_SCRIPTS
-                    ? '<th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>'
-                    : '<th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>'
-                }
+                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200"></tbody>
@@ -105,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
       tituloLink.textContent = script.titulo;
       tituloLink.onclick = (e) => {
         e.preventDefault();
-        carregarScriptParaVisualizacaoOuEdicao(script); // Pode ser admin ou não
+        carregarScriptParaVisualizacaoOuEdicao(script);
       };
       tituloCell.appendChild(tituloLink);
 
@@ -125,7 +121,7 @@ document.addEventListener("DOMContentLoaded", function () {
           "text-indigo-600 hover:text-indigo-900 mr-3 p-1 transition-transform duration-150 ease-in-out hover:scale-110 active:scale-95";
         btnEditar.setAttribute("data-tooltip-text", "Editar Script");
         btnEditar.onclick = () =>
-          carregarScriptParaVisualizacaoOuEdicao(script, true); // true para modo edição
+          carregarScriptParaVisualizacaoOuEdicao(script, true);
         acoesCell.appendChild(btnEditar);
 
         const btnExcluir = document.createElement("button");
@@ -157,36 +153,44 @@ document.addEventListener("DOMContentLoaded", function () {
       if (inputScriptId) inputScriptId.value = script.id;
       if (btnLimparFormulario)
         btnLimparFormulario.style.display = "inline-flex";
-      if (btnSalvarScript)
+      if (btnSalvarScript) {
         btnSalvarScript.innerHTML =
           '<i data-lucide="save" class="w-4 h-4 mr-2"></i> Atualizar Script';
-      if (typeof lucide !== "undefined" && btnSalvarScript)
-        lucide.createIcons({ nodes: [btnSalvarScript.querySelector("i")] });
+        if (typeof lucide !== "undefined")
+          lucide.createIcons({ nodes: [btnSalvarScript.querySelector("i")] });
+      }
       inputTitulo.disabled = false;
       textareaConteudo.disabled = false;
       inputTitulo.focus();
-      // Scroll para o formulário
+
       const formSection = document
         .getElementById("form-novo-script")
         ?.closest("section");
       if (formSection) formSection.scrollIntoView({ behavior: "smooth" });
     } else {
-      // Modo visualização (para não-admins ou se modoEdicao for false)
-      if (inputScriptId) inputScriptId.value = ""; // Limpa ID se não estiver editando
+      if (inputScriptId) inputScriptId.value = "";
       if (btnLimparFormulario) btnLimparFormulario.style.display = "none";
       if (btnSalvarScript && IS_USER_ADMIN_SCRIPTS) {
-        // Se for admin, mas não clicou em editar
         btnSalvarScript.innerHTML =
           '<i data-lucide="save" class="w-4 h-4 mr-2"></i> Salvar Novo Script';
         if (typeof lucide !== "undefined")
           lucide.createIcons({ nodes: [btnSalvarScript.querySelector("i")] });
       }
-      inputTitulo.disabled = true;
-      textareaConteudo.disabled = true;
+
+      inputTitulo.disabled = !IS_USER_ADMIN_SCRIPTS;
+      textareaConteudo.disabled = !IS_USER_ADMIN_SCRIPTS;
+
+      if (IS_USER_ADMIN_SCRIPTS && !modoEdicao) {
+        // Se admin, mas clicou no título (visualizar), habilita para novo
+        inputTitulo.disabled = false;
+        textareaConteudo.disabled = false;
+      }
+
       const formSection = document
         .getElementById("form-novo-script")
         ?.closest("section");
-      if (formSection) formSection.scrollIntoView({ behavior: "smooth" });
+      if (formSection && modoEdicao)
+        formSection.scrollIntoView({ behavior: "smooth" });
     }
   }
 
@@ -267,13 +271,11 @@ document.addEventListener("DOMContentLoaded", function () {
         showToast("Erro de comunicação ao salvar o script.", "error");
       } finally {
         btnSalvarScript.disabled = false;
-        // A restauração do HTML do botão é feita por limparFormulario ou carregarScriptParaEdicao
+
         if (!inputScriptId || !inputScriptId.value) {
-          // Se não estava editando, volta ao normal
           btnSalvarScript.innerHTML =
             '<i data-lucide="save" class="w-4 h-4 mr-2"></i> Salvar Script';
         } else {
-          // Se estava editando, mantém "Atualizar"
           btnSalvarScript.innerHTML =
             '<i data-lucide="save" class="w-4 h-4 mr-2"></i> Atualizar Script';
         }
@@ -299,7 +301,7 @@ document.addEventListener("DOMContentLoaded", function () {
           : null;
         const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
 
-        if (!csrfToken) {
+        if (!csrfToken && IS_USER_ADMIN_SCRIPTS) {
           showToast(
             "Erro de segurança (token scripts ausente). Recarregue a página.",
             "error"
@@ -327,7 +329,7 @@ document.addEventListener("DOMContentLoaded", function () {
             carregarScripts(
               inputPesquisaScript ? inputPesquisaScript.value : ""
             );
-            // Se o script excluído era o que estava no formulário de edição, limpa o formulário
+
             if (inputScriptId && parseInt(inputScriptId.value) === scriptId) {
               limparFormulario();
             }

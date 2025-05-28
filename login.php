@@ -14,34 +14,20 @@ $logger = new LogHelper($conexao);  //
 $home_page_url = SITE_URL . '/home.php'; //
 $login_page_url = SITE_URL . '/index.html'; //
 
-// Função para definir flash message e redirecionar
-function setFlashAndRedirectLogin($type, $message, $location, $conexaoSqlsrv = null) {
-    $_SESSION['flash_message'] = ['type' => $type, 'message' => $message];
-    if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) {
-        sqlsrv_close($conexaoSqlsrv);
-    }
-    header('Location: ' . $location);
-    exit;
-}
-
 
 if (isset($_SESSION['logado']) && $_SESSION['logado'] === true) {
-    if (isset($conexao)) sqlsrv_close($conexao);
+    if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
     header('Location: ' . $home_page_url);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $erro_login_msg = ""; // Usaremos para flash message
+    $erro_login_msg = ""; 
 
     if (!$conexao || !is_resource($conexao) || get_resource_type($conexao) !== 'SQL Server Connection') {
         $logger->log('CRITICAL', 'Conexão com BD indisponível ou inválida em login.php (SQLSRV).', ['connection_status' => ($conexao ? 'Tipo inválido ou não é SQLSRV' : 'Não conectado')]);
-        // Para index.html, que não processa PHP flash messages, redirecionamos com GET param
-        // ou garantimos que auth_forms.js lide com isso de alguma forma.
-        // A melhoria aqui é usar flash_message se o redirecionamento for para uma página PHP.
-        // Como index.html é estático, manteremos o parâmetro GET para ele.
+        if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
         header('Location: ' . $login_page_url . '?erro=' . urlencode("Falha crítica na conexão. Contate o suporte."));
-        if (isset($conexao)) sqlsrv_close($conexao);
         exit;
     }
 
@@ -89,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['csrf_token_reports'] = bin2hex(random_bytes(32));
 
                     $logger->log('AUTH_SUCCESS', 'Login bem-sucedido (SQLSRV).', ['usuario_id' => $db_id, 'usuario' => $db_usuario, 'role' => $db_role]); //
-                    if (isset($conexao)) sqlsrv_close($conexao);
+                    if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
                     header('Location: ' . $home_page_url);
                     exit;
                 } else {
@@ -110,15 +96,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!empty($erro_login_msg)) {
-        // Para index.html, continuamos usando o parâmetro GET.
-        // Se você converter index.html para index.php, poderá usar flash messages aqui também.
-        if (isset($conexao)) sqlsrv_close($conexao);
+        // Para index.html, usamos parâmetro GET, pois ele não processa flash messages da sessão.
+        // auth_forms.js em index.html irá ler este parâmetro.
+        if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
         header('Location: ' . $login_page_url . '?erro=' . urlencode($erro_login_msg));
         exit;
     }
 
 } else {
-    if (isset($conexao)) sqlsrv_close($conexao);
+    if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
     header('Location: ' . $login_page_url);
     exit;
 }

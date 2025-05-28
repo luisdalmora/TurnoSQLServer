@@ -13,23 +13,29 @@ if (session_status() == PHP_SESSION_NONE) {
 $logger = new LogHelper($conexao);  //
 
 $login_page_url = SITE_URL . '/index.html'; //
-$conta_page_url = SITE_URL . '/conta.html'; // Para redirecionar em caso de erro no cadastro
+$conta_page_url = SITE_URL . '/conta.html'; 
 
-// Função para definir flash message e redirecionar
+
 function setFlashAndRedirectCadastro($type, $message, $location, $conexaoSqlsrv = null) {
     // Para páginas HTML (conta.html), ainda usamos GET. Se fosse PHP, usaríamos SESSION.
     if (strpos(basename($location), '.html') !== false) {
-        if (isset($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
         $param_name = ($type === 'error' || $type === 'warning') ? 'erro' : 'status';
-        $param_val = ($type === 'error' || $type === 'warning') ? $message : ($type === 'success' ? 'cadastro_sucesso_form' : 'status_generico'); // Mapear para status se necessário
-        if($type === 'success' && strpos(strtolower($message), 'email enviado') !== false) $param_val = 'cadastro_sucesso_email_enviado';
-        else if ($type === 'success') $param_val = 'cadastro_sucesso';
+        $param_val = $message; // Para erro, a mensagem é direta
 
-        header("Location: " . $location . "?{$param_name}=" . urlencode($message)); // Ou $param_val se usar status
+        if ($type === 'success') {
+            if (strpos(strtolower($message), 'email enviado') !== false || strpos(strtolower($message), 'verifique seu e-mail') !== false) {
+                $param_val = 'cadastro_sucesso_email_enviado';
+            } else {
+                $param_val = 'cadastro_sucesso';
+            }
+        }
+        
+        if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
+        header("Location: " . $location . "?{$param_name}=" . urlencode($param_val)); 
         exit;
-    } else {
+    } else { // Para páginas PHP, usar flash messages
         $_SESSION['flash_message'] = ['type' => $type, 'message' => $message];
-        if (isset($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
+        if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
         header("Location: " . $location);
         exit;
     }
@@ -68,20 +74,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($novo_usuario_id > 0) {
             $logger->log('INFO', 'Novo usuário cadastrado com sucesso.', ['usuario_id' => $novo_usuario_id, 'usuario' => $usuario, 'email' => $email, 'role' => $default_role]); //
 
-            $email_enviado_msg_append = "";
+            $status_param_value = 'cadastro_sucesso';
             if (EmailHelper::sendRegistrationConfirmationEmail($email, $nome_completo)) { //
                 $logger->log('INFO', 'E-mail de confirmação de cadastro enviado.', ['usuario_id' => $novo_usuario_id, 'email' => $email]); //
-                $email_enviado_msg_append = " Verifique seu e-mail para confirmação.";
+                $status_param_value = 'cadastro_sucesso_email_enviado';
             } else {
                 $logger->log('ERROR', 'Falha ao enviar e-mail de confirmação de cadastro.', ['usuario_id' => $novo_usuario_id, 'email' => $email]); //
-                $email_enviado_msg_append = " (Falha ao enviar e-mail de confirmação.)";
             }
 
             sqlsrv_free_stmt($stmt);
-            // Redireciona para login.php (index.html) com status para auth_forms.js tratar
-            $status_param = ($email_enviado_msg_append && strpos($email_enviado_msg_append, 'Verifique seu e-mail') !== false) ? "cadastro_sucesso_email_enviado" : "cadastro_sucesso";
-            if (isset($conexao)) sqlsrv_close($conexao);
-            header("Location: " . $login_page_url . "?status=" . $status_param);
+            if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+            header("Location: " . $login_page_url . "?status=" . $status_param_value);
             exit;
         } else {
             $logger->log('ERROR', 'Cadastro parece ter ocorrido, mas ID do novo usuário não foi retornado ou foi zero.', ['usuario' => $usuario, 'email' => $email, 'scope_identity_result' => $novo_usuario_id]); //
@@ -113,7 +116,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     setFlashAndRedirectCadastro('error', 'Acesso inválido.', $conta_page_url, $conexao);
 }
 
-if (isset($conexao)) {
+if (isset($conexao) && is_resource($conexao)) {
     sqlsrv_close($conexao);
 }
 exit;

@@ -1,4 +1,4 @@
-// src/js/modules/utils.js
+// public/js/modules/utils.js
 console.log("[DEBUG] utils.js: Módulo carregado.");
 
 export const nomesMeses = {
@@ -33,9 +33,9 @@ export function showToast(message, type = "info", duration = 3500) {
   const toast = document.createElement("div");
   toast.id = "toast-notification";
 
-  let bgColor = "bg-blue-500"; // Cor padrão para 'info'
+  let bgColor = "bg-blue-500";
   let iconHtml = "";
-  const iconClasses = "w-5 h-5 mr-2"; // Classes padrão para o ícone
+  const iconClasses = "w-5 h-5 mr-2";
 
   if (type === "success") {
     bgColor = "bg-green-500";
@@ -44,7 +44,7 @@ export function showToast(message, type = "info", duration = 3500) {
     bgColor = "bg-red-500";
     iconHtml = `<i data-lucide="x-circle" class="${iconClasses}"></i>`;
   } else if (type === "warning") {
-    bgColor = "bg-yellow-500 text-gray-800"; // Tailwind amarelo pode precisar de texto escuro
+    bgColor = "bg-yellow-500 text-gray-800";
     iconHtml = `<i data-lucide="alert-triangle" class="${iconClasses}"></i>`;
   } else if (type === "info") {
     bgColor = "bg-blue-500";
@@ -52,11 +52,10 @@ export function showToast(message, type = "info", duration = 3500) {
   }
 
   toast.className = `fixed bottom-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium z-[1060] transition-all duration-300 ease-out opacity-0 translate-y-10 flex items-center ${bgColor}`;
-  toast.innerHTML = iconHtml + `<span>${message}</span>`; // Adiciona o ícone e a mensagem
+  toast.innerHTML = iconHtml + `<span>${message}</span>`;
 
   document.body.appendChild(toast);
 
-  // Renderizar o ícone Lucide
   if (typeof lucide !== "undefined" && iconHtml !== "") {
     const iconElement = toast.querySelector("i[data-lucide]");
     if (iconElement) {
@@ -80,7 +79,7 @@ export function showToast(message, type = "info", duration = 3500) {
   }, duration);
 }
 
-export let todosOsColaboradores = []; // Será populado por buscarEArmazenarColaboradores
+export let todosOsColaboradores = [];
 
 export async function buscarEArmazenarColaboradores() {
   console.log("[DEBUG] buscarEArmazenarColaboradores (utils.js) chamado.");
@@ -113,7 +112,7 @@ export async function buscarEArmazenarColaboradores() {
     const data = await response.json();
     console.log("[DEBUG] Dados de colaboradores recebidos (utils.js):", data);
     if (data.success && data.colaboradores) {
-      todosOsColaboradores = data.colaboradores; // Armazena na variável exportada
+      todosOsColaboradores = data.colaboradores;
       return todosOsColaboradores;
     } else {
       showToast(
@@ -142,7 +141,7 @@ export function popularSelectColaborador(
   valorSelecionado = null,
   colaboradoresArray = null
 ) {
-  const colaboradores = colaboradoresArray || todosOsColaboradores; // Usa o array passado ou o global
+  const colaboradores = colaboradoresArray || todosOsColaboradores;
   selectElement.innerHTML =
     '<option value="" class="text-gray-500">Selecione...</option>';
   if (!Array.isArray(colaboradores)) {
@@ -153,7 +152,7 @@ export function popularSelectColaborador(
   }
   colaboradores.forEach((colab) => {
     const option = document.createElement("option");
-    option.value = colab.nome_completo; // Assumindo que o valor é o nome completo
+    option.value = colab.nome_completo;
     option.textContent = colab.nome_completo;
     if (valorSelecionado && colab.nome_completo === valorSelecionado)
       option.selected = true;
@@ -177,7 +176,6 @@ export function calcularDuracaoDecimal(horaInicioStr, horaFimStr) {
   let fimEmMinutos = h2 * 60 + m2;
 
   if (fimEmMinutos < inicioEmMinutos) {
-    // Passou da meia-noite
     fimEmMinutos += 24 * 60;
   }
 
@@ -236,7 +234,6 @@ export function showConfirmationModal(
     });
   }
 
-  // Animação de entrada
   requestAnimationFrame(() => {
     modal.classList.remove("opacity-0");
     if (modalContent) modalContent.classList.remove("scale-95", "opacity-0");
@@ -278,7 +275,6 @@ export function showConfirmationModal(
       closeModal(onCancel);
     });
 
-  // Fechar ao clicar fora do conteúdo do modal
   modal.addEventListener("click", (event) => {
     if (event.target === modal) {
       closeModal(onCancel);

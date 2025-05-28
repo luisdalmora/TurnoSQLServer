@@ -1,4 +1,4 @@
-// src/js/modules/turnosManager.js
+// public/js/modules/turnosManager.js
 import {
   showToast,
   popularSelectColaborador,
@@ -9,7 +9,7 @@ import {
   buscarEArmazenarColaboradores,
   todosOsColaboradores as colaboradoresGlobais,
   nomesMeses,
-  showConfirmationModal // Adicionada importação
+  showConfirmationModal
 } from "./utils.js";
 import * as state from "./state.js";
 import { updateCurrentMonthYearDisplayTurnos } from "./uiUpdater.js";
@@ -17,6 +17,10 @@ import { updateCurrentMonthYearDisplayTurnos } from "./uiUpdater.js";
 console.log("[DEBUG] turnosManager.js: Módulo carregado.");
 
 let employeeHoursChartInstance = null;
+
+// ... (funções: popularTabelaTurnos, coletarDadosDaTabelaDeTurnos, salvarDadosTurnosNoServidor, excluirTurnosNoServidor, atualizarTabelaResumoColaboradores, atualizarGraficoResumoHoras - permanecem como estão) ...
+// Cole aqui as implementações completas dessas funções do seu arquivo original ou da resposta anterior.
+// Vou repetir apenas carregarTurnosDoServidor para mostrar a modificação.
 
 async function popularTabelaTurnos(turnos) {
   const corpoTabela = document.querySelector("#shifts-table-main tbody");
@@ -42,11 +46,14 @@ async function popularTabelaTurnos(turnos) {
     const r = corpoTabela.insertRow();
     r.className = "bg-white";
     const c = r.insertCell();
-    c.colSpan = 5; 
+    const colSpan = document.querySelector("#shifts-table-main thead th input#select-all-shifts") ? 5 : 4; // Ajusta colspan se checkbox de admin existe
+    c.colSpan = colSpan; 
     c.className = "p-2 text-center text-gray-500 text-sm";
     c.textContent = "Nenhum turno programado para este período.";
     return;
   }
+
+  const isUserAdmin = window.APP_USER_ROLE === 'admin';
 
   turnos.forEach((turno) => {
     const nLinha = corpoTabela.insertRow();
@@ -55,11 +62,14 @@ async function popularTabelaTurnos(turnos) {
 
     const cellCheckbox = nLinha.insertCell();
     cellCheckbox.className = "p-2 text-center";
-    const inputCheckbox = document.createElement("input");
-    inputCheckbox.type = "checkbox";
-    inputCheckbox.className = `shift-select-checkbox ${tailwindCheckboxClasses}`; //
-    inputCheckbox.value = turno.id;
-    cellCheckbox.appendChild(inputCheckbox);
+    if(isUserAdmin){
+        const inputCheckbox = document.createElement("input");
+        inputCheckbox.type = "checkbox";
+        inputCheckbox.className = `shift-select-checkbox ${tailwindCheckboxClasses}`; //
+        inputCheckbox.value = turno.id;
+        cellCheckbox.appendChild(inputCheckbox);
+    }
+
 
     const cellData = nLinha.insertCell();
     cellData.className = "p-1";
@@ -68,6 +78,7 @@ async function popularTabelaTurnos(turnos) {
     inputData.className = `shift-date ${tailwindInputClasses}`; //
     inputData.value = turno.data_formatada || turno.data; 
     inputData.placeholder = "dd/Mês";
+    inputData.disabled = !isUserAdmin;
     cellData.appendChild(inputData);
 
     const cellInicio = nLinha.insertCell();
@@ -78,6 +89,7 @@ async function popularTabelaTurnos(turnos) {
     inputInicio.value = turno.hora_inicio
       ? turno.hora_inicio.substring(0, 5)
       : ""; 
+    inputInicio.disabled = !isUserAdmin;
     cellInicio.appendChild(inputInicio);
 
     const cellFim = nLinha.insertCell();
@@ -86,6 +98,7 @@ async function popularTabelaTurnos(turnos) {
     inputFim.type = "time";
     inputFim.className = `shift-time-fim ${tailwindInputClasses}`; //
     inputFim.value = turno.hora_fim ? turno.hora_fim.substring(0, 5) : ""; 
+    inputFim.disabled = !isUserAdmin;
     cellFim.appendChild(inputFim);
 
     const cellColab = nLinha.insertCell();
@@ -93,9 +106,103 @@ async function popularTabelaTurnos(turnos) {
     const selColab = document.createElement("select");
     selColab.className = `shift-employee shift-employee-select ${tailwindSelectClasses}`; //
     popularSelectColaborador(selColab, turno.colaborador, colaboradoresGlobais); 
+    selColab.disabled = !isUserAdmin;
     cellColab.appendChild(selColab);
   });
 }
+
+
+export async function carregarTurnosDoServidor(
+  ano,
+  mes,
+  atualizarResumosGlobais = true
+) {
+  const shiftsTableBody = document.querySelector("#shifts-table-main tbody");
+  const csrfInputOriginal = document.getElementById("csrf-token-shifts"); // Só existe para admin
+  const isUserAdmin = window.APP_USER_ROLE === 'admin';
+
+  if (shiftsTableBody) {
+    const colSpan = isUserAdmin ? 5 : 4;
+    shiftsTableBody.innerHTML = `<tr><td colspan="${colSpan}" class="p-2 text-center text-gray-500 text-sm">Carregando turnos... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
+    if (typeof lucide !== "undefined") lucide.createIcons({nodes: [shiftsTableBody.querySelector('i')]});
+  } else {
+    console.error(
+      "[DEBUG] Elemento tbody da tabela de turnos não encontrado (turnosManager.js)."
+    );
+    return []; // Retorna array vazio em caso de erro de DOM
+  }
+
+  try {
+    const response = await fetch(`api/salvar_turnos.php?ano=${ano}&mes=${mes}`); //
+    let data;
+    if (!response.ok) {
+      let errorMsg = `Erro HTTP ${response.status}`;
+      try {
+        data = await response.json();
+        errorMsg = data.message || errorMsg;
+      } catch (e) {
+        const errText = await response.text().catch(() => "");
+        errorMsg = errText.substring(0, 150) || errorMsg;
+      }
+      throw new Error(errorMsg);
+    }
+    data = await response.json();
+
+    const turnosCarregados = data.data || [];
+
+    if (data.success) {
+      if (isUserAdmin && data.csrf_token && csrfInputOriginal)
+        csrfInputOriginal.value = data.csrf_token;
+      
+      await popularTabelaTurnos(turnosCarregados); 
+      if (atualizarResumosGlobais) {
+        atualizarTabelaResumoColaboradores(turnosCarregados);
+        atualizarGraficoResumoHoras(turnosCarregados);
+      }
+      return turnosCarregados; // << RETORNAR OS DADOS
+    } else {
+      showToast(
+        "Aviso: " + (data.message || "Não foi possível carregar turnos."),
+        "warning"
+      );
+      await popularTabelaTurnos([]);
+      if (atualizarResumosGlobais) {
+        atualizarTabelaResumoColaboradores([]);
+        atualizarGraficoResumoHoras([]);
+      }
+      return []; // Retorna array vazio
+    }
+  } catch (error) {
+    console.error(
+      `[DEBUG] Erro ao carregar turnos para ${mes}/${ano} (turnosManager.js):`,
+      error
+    );
+    showToast(
+      `Erro ao carregar turnos: ${error.message}. Verifique o console.`,
+      "error"
+    );
+    await popularTabelaTurnos([]);
+    if (atualizarResumosGlobais) {
+      atualizarTabelaResumoColaboradores([]);
+      atualizarGraficoResumoHoras([]);
+    }
+    return []; // Retorna array vazio
+  }
+}
+
+// Cole aqui as funções:
+// coletarDadosDaTabelaDeTurnos
+// salvarDadosTurnosNoServidor
+// excluirTurnosNoServidor
+// atualizarTabelaResumoColaboradores
+// atualizarGraficoResumoHoras
+// initTurnosEventListeners
+// Certifique-se que a função popularTabelaTurnos e initTurnosEventListeners lidem com a ausência da coluna de checkbox para não-admins.
+// ... (coloque o restante das funções do turnosManager.js aqui, como na resposta anterior, fazendo os devidos ajustes para o modo não-admin onde necessário, como desabilitar inputs na tabela de turnos se o usuário não for admin.)
+
+// Lembre-se de adaptar a função popularTabelaTurnos e initTurnosEventListeners
+// para não tentar manipular elementos que só existem para admins (como a checkbox "select-all-shifts")
+// quando o usuário não for admin.
 
 function coletarDadosDaTabelaDeTurnos() {
   const linhas = document.querySelectorAll("#shifts-table-main tbody tr");
@@ -219,11 +326,16 @@ async function salvarDadosTurnosNoServidor(dadosTurnos, csrfToken) {
         if (csrfInput) csrfInput.value = data.csrf_token;
       }
       
-      await carregarTurnosDoServidor(
+      const turnosRecarregados = await carregarTurnosDoServidor(
         state.currentDisplayYear,
         state.currentDisplayMonth,
         true
       );
+      // Se o calendário precisar ser atualizado aqui também:
+      // if (typeof window.atualizarCalendarioTurnos === 'function') { // Supondo uma função global ou exportada
+      //    window.atualizarCalendarioTurnos(state.currentDisplayYear, state.currentDisplayMonth, turnosRecarregados);
+      // }
+
     } else {
       showToast(
         "Erro ao salvar: " + (data.message || "Erro desconhecido do servidor."),
@@ -239,7 +351,7 @@ async function salvarDadosTurnosNoServidor(dadosTurnos, csrfToken) {
   } finally {
     if (btnSalvar) {
       btnSalvar.disabled = false;
-      btnSalvar.innerHTML = originalButtonHTML;
+      btnSalvar.innerHTML = originalButtonHTML; // Restaurar o conteúdo original
       if (typeof lucide !== "undefined") lucide.createIcons({nodes: [btnSalvar.querySelector('i')]});
     }
   }
@@ -247,12 +359,10 @@ async function salvarDadosTurnosNoServidor(dadosTurnos, csrfToken) {
 
 async function excluirTurnosNoServidor(ids, csrfToken) {
   if (!ids || ids.length === 0) {
-    // Esta verificação é feita antes de chamar showConfirmationModal, mas mantida por segurança.
     showToast("Nenhum turno selecionado para exclusão.", "info");
     return;
   }
-  // A confirmação agora é feita externamente por showConfirmationModal
-
+  
   try {
     const response = await fetch("api/salvar_turnos.php", { //
       method: "POST",
@@ -283,11 +393,14 @@ async function excluirTurnosNoServidor(ids, csrfToken) {
         const csrfInput = document.getElementById("csrf-token-shifts");
         if (csrfInput) csrfInput.value = data.csrf_token;
       }
-      carregarTurnosDoServidor(
+      const turnosRecarregados = await carregarTurnosDoServidor(
         state.currentDisplayYear,
         state.currentDisplayMonth,
         true
       );
+      // if (typeof window.atualizarCalendarioTurnos === 'function') {
+      //    window.atualizarCalendarioTurnos(state.currentDisplayYear, state.currentDisplayMonth, turnosRecarregados);
+      // }
     } else {
       showToast(
         "Erro ao excluir: " + (data.message || "Erro do servidor."),
@@ -435,7 +548,7 @@ function atualizarGraficoResumoHoras(turnos) {
         },
         plugins: {
           legend: {
-            display: dataPoints.length > 1, // Mostra legenda apenas se houver mais de um item
+            display: dataPoints.length > 1, 
             position: "bottom",
             labels: { font: { family: "Poppins" } },
           },
@@ -458,284 +571,217 @@ function atualizarGraficoResumoHoras(turnos) {
   }
 }
 
-export async function carregarTurnosDoServidor(
-  ano,
-  mes,
-  atualizarResumosGlobais = true
-) {
-  const shiftsTableBody = document.querySelector("#shifts-table-main tbody");
-  const csrfInputOriginal = document.getElementById("csrf-token-shifts");
-
-  if (shiftsTableBody) {
-    shiftsTableBody.innerHTML = `<tr><td colspan="5" class="p-2 text-center text-gray-500 text-sm">Carregando turnos... <i data-lucide="loader-circle" class="lucide-spin inline-block w-4 h-4"></i></td></tr>`;
-    if (typeof lucide !== "undefined") lucide.createIcons({nodes: [shiftsTableBody.querySelector('i')]});
-  } else {
-    console.error(
-      "[DEBUG] Elemento tbody da tabela de turnos não encontrado (turnosManager.js)."
-    );
-    return;
-  }
-
-  try {
-    const response = await fetch(`api/salvar_turnos.php?ano=${ano}&mes=${mes}`); //
-    let data;
-    if (!response.ok) {
-      let errorMsg = `Erro HTTP ${response.status}`;
-      try {
-        data = await response.json();
-        errorMsg = data.message || errorMsg;
-      } catch (e) {
-        const errText = await response.text().catch(() => "");
-        errorMsg = errText.substring(0, 150) || errorMsg;
-      }
-      throw new Error(errorMsg);
-    }
-    data = await response.json();
-
-    if (data.success) {
-      if (data.csrf_token && csrfInputOriginal)
-        csrfInputOriginal.value = data.csrf_token;
-      await popularTabelaTurnos(data.data || []); 
-      if (atualizarResumosGlobais) {
-        atualizarTabelaResumoColaboradores(data.data || []);
-        atualizarGraficoResumoHoras(data.data || []);
-      }
-    } else {
-      showToast(
-        "Aviso: " + (data.message || "Não foi possível carregar turnos."),
-        "warning"
-      );
-      await popularTabelaTurnos([]);
-      if (atualizarResumosGlobais) {
-        atualizarTabelaResumoColaboradores([]);
-        atualizarGraficoResumoHoras([]);
-      }
-    }
-  } catch (error) {
-    console.error(
-      `[DEBUG] Erro ao carregar turnos para ${mes}/${ano} (turnosManager.js):`,
-      error
-    );
-    showToast(
-      `Erro ao carregar turnos: ${error.message}. Verifique o console.`,
-      "error"
-    );
-    await popularTabelaTurnos([]);
-    if (atualizarResumosGlobais) {
-      atualizarTabelaResumoColaboradores([]);
-      atualizarGraficoResumoHoras([]);
-    }
-  }
-}
-
 export function initTurnosEventListeners() {
-  const btnSalvarTurnos = document.getElementById("save-shifts-button");
-  if (btnSalvarTurnos) {
-    btnSalvarTurnos.addEventListener("click", () => {
-      console.log("[DEBUG] Botão 'Salvar Turnos' clicado (turnosManager.js).");
-      const csrfTokenEl = document.getElementById("csrf-token-shifts");
-      const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
-      if (!csrfToken) {
-        showToast(
-          "Erro de segurança (token turnos ausente). Recarregue a página.",
-          "error"
-        );
-        return;
-      }
-      const dados = coletarDadosDaTabelaDeTurnos();
-      if (dados && dados.length > 0) {
-        salvarDadosTurnosNoServidor(dados, csrfToken);
-      } else if (dados && dados.length === 0) {
-        const tbody = document.querySelector("#shifts-table-main tbody");
-        const placeholderVisivel =
-          tbody && tbody.querySelector("td[colspan='5']");
-        if (placeholderVisivel || (tbody && tbody.rows.length === 0)) {
-          showToast("Adicione pelo menos um turno para salvar.", "info");
-        } else {
-          showToast(
-            "Nenhum turno válido para salvar. Verifique as linhas.",
-            "warning"
-          );
-        }
-      } else if (dados === null) {
-        console.log(
-          "[DEBUG] Coleta de dados de turnos retornou null (erro de validação) (turnosManager.js)."
-        );
-        // O showToast de erro já deve ter sido exibido em coletarDadosDaTabelaDeTurnos
-      } else {
-        console.error(
-          "[DEBUG] coletarDadosDaTabelaDeTurnos retornou valor inesperado:",
-          dados
-        );
-        showToast("Erro interno ao coletar dados dos turnos.", "error");
-      }
-    });
-  }
+  const isUserAdmin = window.APP_USER_ROLE === 'admin';
 
-  const btnAdicionarTurno = document.getElementById("add-shift-row-button");
-  if (btnAdicionarTurno) {
-    btnAdicionarTurno.addEventListener("click", async function () {
-      
-      console.log(
-        "[DEBUG] Botão 'Adicionar Turno' clicado (turnosManager.js)."
-      );
-      const tbody = document.querySelector("#shifts-table-main tbody");
-      if (!tbody) return;
-      const placeholderRow = tbody.querySelector("td[colspan='5']");
-      if (placeholderRow) tbody.innerHTML = "";
-
-      if (
-        colaboradoresGlobais.length === 0 ||
-        !colaboradoresGlobais[0] ||
-        !colaboradoresGlobais[0].hasOwnProperty("id")
-      ) {
-        await buscarEArmazenarColaboradores();
-      }
-
-      const newId = "new-" + Date.now();
-      const nLinha = tbody.insertRow();
-      nLinha.className = "bg-white hover:bg-gray-50";
-      nLinha.setAttribute("data-turno-id", newId);
-
-      let cell = nLinha.insertCell();
-      cell.className = "p-2 text-center";
-      let inputChk = document.createElement("input");
-      inputChk.type = "checkbox";
-      inputChk.className = `shift-select-checkbox ${tailwindCheckboxClasses}`; //
-      inputChk.value = newId; // Para identificar a nova linha se necessário
-      cell.appendChild(inputChk);
-
-      
-      const dataAtual = new Date();
-      const dia = String(dataAtual.getDate()).padStart(2, "0");
-      
-      const nomeMesAtual =
-        nomesMeses[state.currentDisplayMonth] ||
-        `Mês ${state.currentDisplayMonth}`;
-
-      cell = nLinha.insertCell();
-      cell.className = "p-1";
-      let inputData = document.createElement("input");
-      inputData.type = "text";
-      inputData.className = `shift-date ${tailwindInputClasses}`; //
-      
-      inputData.value = `${dia}/${nomeMesAtual.substring(0, 3)}`; 
-      inputData.placeholder = "dd/Mês";
-      cell.appendChild(inputData);
-      
-      cell = nLinha.insertCell();
-      cell.className = "p-1";
-      let inputInicio = document.createElement("input");
-      inputInicio.type = "time";
-      inputInicio.className = `shift-time-inicio ${tailwindInputClasses}`; //
-      inputInicio.value = "08:00"; 
-      cell.appendChild(inputInicio);
-
-      cell = nLinha.insertCell();
-      cell.className = "p-1";
-      let inputFim = document.createElement("input");
-      inputFim.type = "time";
-      inputFim.className = `shift-time-fim ${tailwindInputClasses}`; //
-      inputFim.value = "12:00"; 
-      cell.appendChild(inputFim);
-      
-
-      cell = nLinha.insertCell();
-      cell.className = "p-1";
-      const selColab = document.createElement("select");
-      selColab.className = `shift-employee shift-employee-select ${tailwindSelectClasses}`; //
-      popularSelectColaborador(selColab, null, colaboradoresGlobais);
-      cell.appendChild(selColab);
-
-      
-      if (inputData) inputData.focus();
-    });
-  }
-
-  const chkAllShifts = document.getElementById("select-all-shifts");
-  if (chkAllShifts) {
-    chkAllShifts.addEventListener("change", () => {
-      document
-        .querySelectorAll("#shifts-table-main .shift-select-checkbox")
-        .forEach((c) => (c.checked = chkAllShifts.checked));
-    });
-  }
-
-  const btnDelSelShifts = document.getElementById(
-    "delete-selected-shifts-button"
-  );
-  if (btnDelSelShifts) {
-    btnDelSelShifts.addEventListener("click", () => {
-      console.log(
-        "[DEBUG] Botão 'Excluir Turnos Selecionados' clicado (turnosManager.js)."
-      );
-      const csrfTokenEl = document.getElementById("csrf-token-shifts");
-      const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
-      if (!csrfToken) {
-        showToast("Erro de segurança. Recarregue a página.", "error");
-        return;
-      }
-      const idsParaExcluirServidor = [];
-      let linhasNovasRemovidasLocalmente = 0;
-      const linhasParaRemoverLocalmente = [];
-
-      document
-        .querySelectorAll("#shifts-table-main .shift-select-checkbox:checked")
-        .forEach((c) => {
-          const tr = c.closest("tr");
-          if (tr) {
-            const id = tr.getAttribute("data-turno-id");
-            if (id && !id.startsWith("new-")) {
-              idsParaExcluirServidor.push(id);
-            } else if (id && id.startsWith("new-")) {
-              linhasNovasRemovidasLocalmente++;
-              linhasParaRemoverLocalmente.push(tr);
+  if (isUserAdmin) {
+      const btnSalvarTurnos = document.getElementById("save-shifts-button");
+      if (btnSalvarTurnos) {
+        btnSalvarTurnos.addEventListener("click", () => {
+          console.log("[DEBUG] Botão 'Salvar Turnos' clicado (turnosManager.js).");
+          const csrfTokenEl = document.getElementById("csrf-token-shifts");
+          const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
+          if (!csrfToken) {
+            showToast(
+              "Erro de segurança (token turnos ausente). Recarregue a página.",
+              "error"
+            );
+            return;
+          }
+          const dados = coletarDadosDaTabelaDeTurnos();
+          if (dados && dados.length > 0) {
+            salvarDadosTurnosNoServidor(dados, csrfToken);
+          } else if (dados && dados.length === 0) {
+            const tbody = document.querySelector("#shifts-table-main tbody");
+            const placeholderVisivel =
+              tbody && tbody.querySelector("td[colspan='5']"); // Admin tem 5 colunas com checkbox
+            if (placeholderVisivel || (tbody && tbody.rows.length === 0)) {
+              showToast("Adicione pelo menos um turno para salvar.", "info");
+            } else {
+              showToast(
+                "Nenhum turno válido para salvar. Verifique as linhas.",
+                "warning"
+              );
             }
+          } else if (dados === null) {
+            console.log(
+              "[DEBUG] Coleta de dados de turnos retornou null (erro de validação) (turnosManager.js)."
+            );
+          } else {
+            console.error(
+              "[DEBUG] coletarDadosDaTabelaDeTurnos retornou valor inesperado:",
+              dados
+            );
+            showToast("Erro interno ao coletar dados dos turnos.", "error");
           }
         });
-
-      if (idsParaExcluirServidor.length === 0 && linhasNovasRemovidasLocalmente === 0) {
-        showToast("Nenhum turno selecionado para exclusão.", "info");
-        return;
       }
 
-      let confirmMessage = "";
-      if (idsParaExcluirServidor.length > 0 && linhasNovasRemovidasLocalmente > 0) {
-          confirmMessage = `Tem certeza que deseja excluir ${idsParaExcluirServidor.length} turno(s) salvo(s) e remover ${linhasNovasRemovidasLocalmente} linha(s) nova(s)? A exclusão dos turnos salvos não pode ser desfeita.`;
-      } else if (idsParaExcluirServidor.length > 0) {
-          confirmMessage = `Tem certeza que deseja excluir ${idsParaExcluirServidor.length} turno(s) salvo(s)? Esta ação não pode ser desfeita.`;
-      } else { 
-          confirmMessage = `Tem certeza que deseja remover ${linhasNovasRemovidasLocalmente} linha(s) nova(s) (não salva(s))?`;
-      }
-      
-      const chkAllShiftsCurrent = document.getElementById("select-all-shifts");
-
-      showConfirmationModal(confirmMessage, () => {
-          // Ação de confirmação
-          if (idsParaExcluirServidor.length > 0) {
-              excluirTurnosNoServidor(idsParaExcluirServidor, csrfToken);
-          }
+      const btnAdicionarTurno = document.getElementById("add-shift-row-button");
+      if (btnAdicionarTurno) {
+        btnAdicionarTurno.addEventListener("click", async function () {
           
-          if (linhasNovasRemovidasLocalmente > 0) {
-              linhasParaRemoverLocalmente.forEach(tr => tr.remove());
-              showToast(
-                  `${linhasNovasRemovidasLocalmente} linha(s) nova(s) (não salva(s)) foram removida(s).`,
-                  "info"
-              );
-              const tbody = document.querySelector("#shifts-table-main tbody");
-              if (tbody && tbody.rows.length === 0) {
-                  popularTabelaTurnos([]); 
-              }
+          console.log(
+            "[DEBUG] Botão 'Adicionar Turno' clicado (turnosManager.js)."
+          );
+          const tbody = document.querySelector("#shifts-table-main tbody");
+          if (!tbody) return;
+          const placeholderRow = tbody.querySelector("td[colspan='5']"); // Admin
+          if (placeholderRow) tbody.innerHTML = "";
+
+          if (
+            colaboradoresGlobais.length === 0 ||
+            !colaboradoresGlobais[0] ||
+            !colaboradoresGlobais[0].hasOwnProperty("id")
+          ) {
+            await buscarEArmazenarColaboradores();
           }
-          if (chkAllShiftsCurrent) chkAllShiftsCurrent.checked = false;
-      }, () => {
-          // Ação de cancelamento
-          showToast("Exclusão de turnos cancelada.", "info");
+
+          const newId = "new-" + Date.now();
+          const nLinha = tbody.insertRow();
+          nLinha.className = "bg-white hover:bg-gray-50";
+          nLinha.setAttribute("data-turno-id", newId);
+
+          let cell = nLinha.insertCell();
+          cell.className = "p-2 text-center";
+          let inputChk = document.createElement("input");
+          inputChk.type = "checkbox";
+          inputChk.className = `shift-select-checkbox ${tailwindCheckboxClasses}`; //
+          inputChk.value = newId; 
+          cell.appendChild(inputChk);
+
+          
+          const dataAtual = new Date();
+          const dia = String(dataAtual.getDate()).padStart(2, "0");
+          
+          const nomeMesAtual =
+            nomesMeses[state.currentDisplayMonth] ||
+            `Mês ${state.currentDisplayMonth}`;
+
+          cell = nLinha.insertCell();
+          cell.className = "p-1";
+          let inputData = document.createElement("input");
+          inputData.type = "text";
+          inputData.className = `shift-date ${tailwindInputClasses}`; //
+          
+          inputData.value = `${dia}/${nomeMesAtual.substring(0, 3)}`; 
+          inputData.placeholder = "dd/Mês";
+          cell.appendChild(inputData);
+          
+          cell = nLinha.insertCell();
+          cell.className = "p-1";
+          let inputInicio = document.createElement("input");
+          inputInicio.type = "time";
+          inputInicio.className = `shift-time-inicio ${tailwindInputClasses}`; //
+          inputInicio.value = "08:00"; 
+          cell.appendChild(inputInicio);
+
+          cell = nLinha.insertCell();
+          cell.className = "p-1";
+          let inputFim = document.createElement("input");
+          inputFim.type = "time";
+          inputFim.className = `shift-time-fim ${tailwindInputClasses}`; //
+          inputFim.value = "12:00"; 
+          cell.appendChild(inputFim);
+          
+
+          cell = nLinha.insertCell();
+          cell.className = "p-1";
+          const selColab = document.createElement("select");
+          selColab.className = `shift-employee shift-employee-select ${tailwindSelectClasses}`; //
+          popularSelectColaborador(selColab, null, colaboradoresGlobais);
+          cell.appendChild(selColab);
+
+          
+          if (inputData) inputData.focus();
+        });
+      }
+
+      const chkAllShifts = document.getElementById("select-all-shifts");
+      if (chkAllShifts) {
+        chkAllShifts.addEventListener("change", () => {
+          document
+            .querySelectorAll("#shifts-table-main .shift-select-checkbox")
+            .forEach((c) => (c.checked = chkAllShifts.checked));
+        });
+      }
+
+      const btnDelSelShifts = document.getElementById(
+        "delete-selected-shifts-button"
+      );
+      if (btnDelSelShifts) {
+        btnDelSelShifts.addEventListener("click", () => {
+          console.log(
+            "[DEBUG] Botão 'Excluir Turnos Selecionados' clicado (turnosManager.js)."
+          );
+          const csrfTokenEl = document.getElementById("csrf-token-shifts");
+          const csrfToken = csrfTokenEl ? csrfTokenEl.value : null;
+          if (!csrfToken) {
+            showToast("Erro de segurança. Recarregue a página.", "error");
+            return;
+          }
+          const idsParaExcluirServidor = [];
+          let linhasNovasRemovidasLocalmente = 0;
+          const linhasParaRemoverLocalmente = [];
+
           document
             .querySelectorAll("#shifts-table-main .shift-select-checkbox:checked")
-            .forEach(c => c.checked = false);
-          if (chkAllShiftsCurrent) chkAllShiftsCurrent.checked = false;
-      });
-    });
-  }
+            .forEach((c) => {
+              const tr = c.closest("tr");
+              if (tr) {
+                const id = tr.getAttribute("data-turno-id");
+                if (id && !id.startsWith("new-")) {
+                  idsParaExcluirServidor.push(id);
+                } else if (id && id.startsWith("new-")) {
+                  linhasNovasRemovidasLocalmente++;
+                  linhasParaRemoverLocalmente.push(tr);
+                }
+              }
+            });
+
+          if (idsParaExcluirServidor.length === 0 && linhasNovasRemovidasLocalmente === 0) {
+            showToast("Nenhum turno selecionado para exclusão.", "info");
+            return;
+          }
+
+          let confirmMessage = "";
+          if (idsParaExcluirServidor.length > 0 && linhasNovasRemovidasLocalmente > 0) {
+              confirmMessage = `Tem certeza que deseja excluir ${idsParaExcluirServidor.length} turno(s) salvo(s) e remover ${linhasNovasRemovidasLocalmente} linha(s) nova(s)? A exclusão dos turnos salvos não pode ser desfeita.`;
+          } else if (idsParaExcluirServidor.length > 0) {
+              confirmMessage = `Tem certeza que deseja excluir ${idsParaExcluirServidor.length} turno(s) salvo(s)? Esta ação não pode ser desfeita.`;
+          } else { 
+              confirmMessage = `Tem certeza que deseja remover ${linhasNovasRemovidasLocalmente} linha(s) nova(s) (não salva(s))?`;
+          }
+          
+          const chkAllShiftsCurrent = document.getElementById("select-all-shifts");
+
+          showConfirmationModal(confirmMessage, async () => { // Adicionado async aqui
+              // Ação de confirmação
+              if (idsParaExcluirServidor.length > 0) {
+                  await excluirTurnosNoServidor(idsParaExcluirServidor, csrfToken); // await se excluir for async (e é)
+              }
+              
+              if (linhasNovasRemovidasLocalmente > 0) {
+                  linhasParaRemoverLocalmente.forEach(tr => tr.remove());
+                  showToast(
+                      `${linhasNovasRemovidasLocalmente} linha(s) nova(s) (não salva(s)) foram removida(s).`,
+                      "info"
+                  );
+                  const tbody = document.querySelector("#shifts-table-main tbody");
+                  if (tbody && tbody.rows.length === 0) {
+                      await popularTabelaTurnos([]); 
+                  }
+              }
+              if (chkAllShiftsCurrent) chkAllShiftsCurrent.checked = false;
+          }, () => {
+              // Ação de cancelamento
+              showToast("Exclusão de turnos cancelada.", "info");
+              document
+                .querySelectorAll("#shifts-table-main .shift-select-checkbox:checked")
+                .forEach(c => c.checked = false);
+              if (chkAllShiftsCurrent) chkAllShiftsCurrent.checked = false;
+          });
+        });
+      }
+  } // Fim do if (isUserAdmin)
 }

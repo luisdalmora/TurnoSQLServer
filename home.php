@@ -11,7 +11,6 @@ $project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
     $project_root_web_path = ''; 
 }
-// Define BASE_URL_REDIRECT se ainda não estiver definido (evita conflito com header.php)
 if (!defined('BASE_URL_REDIRECT')) {
     define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
 }
@@ -31,18 +30,18 @@ $pageTitle = 'Dashboard';
 $currentPage = 'home'; 
 $headerIcon = '<i data-lucide="layout-dashboard" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
-require_once __DIR__ . '/templates/header.php'; // Isso define $USUARIO_ATUAL_ROLE e isAdmin()
+require_once __DIR__ . '/templates/header.php'; 
 
 $csrfToken = $_SESSION['csrf_token'] ?? '';
 $csrfTokenAusencias = $_SESSION['csrf_token_ausencias'] ?? '';
 $csrfTokenObsGeral = $_SESSION['csrf_token_obs_geral'] ?? '';
 
 $anoExibicao = date('Y');
-$mesExibicao = date('m');
+$mesExibicao = date('m'); // Mês como número (01-12)
 $nomesMeses = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 $nomeMesExibicao = $nomesMeses[(int)$mesExibicao] ?? '';
 
-$isUserAdmin = isAdmin(); // Usar a função definida no header.php
+$isUserAdmin = isAdmin(); 
 ?>
 
 <?php if ($isUserAdmin): ?>
@@ -127,7 +126,7 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
                 </button>
             </div>
             
-            <?php if ($isUserAdmin): // Botões de ação de Turnos apenas para Admin ?>
+            <?php if ($isUserAdmin): ?>
             <div class="flex flex-wrap gap-2 mb-3">
                 <button id="add-shift-row-button" class="px-3 py-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 rounded-md flex items-center transition-all duration-150 ease-in-out hover:scale-105 active:scale-95" data-tooltip-text="Adicionar Nova Linha de Turno">
                     <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i> Adicionar Turno
@@ -141,7 +140,7 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
             </div>
             <?php endif; ?>
 
-            <div class="overflow-x-auto max-h-80 text-xs md:text-sm">
+            <div class="overflow-x-auto max-h-80 text-xs md:text-sm mb-6">
                 <table id="shifts-table-main" class="w-full min-w-[500px]">
                 <thead class="sticky top-0 bg-blue-600 text-white z-10">
                     <tr>
@@ -156,12 +155,22 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
                         <th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th>
                     </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200"></tbody>
+                    <tbody class="divide-y divide-gray-200">
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <div class="pt-4">
+        <div class="pt-4 mt-6 border-t border-gray-200">
+            <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center" data-tooltip-text="Visualização em Calendário dos Turnos do Mês">
+                <i data-lucide="calendar-days" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Calendário de Turnos (<span id="calendar-view-period"><?php echo htmlspecialchars($nomeMesExibicao); ?></span>)
+            </h2>
+            <div id="turnos-calendar-view-container" class="overflow-x-auto">
+                <p class="text-center text-gray-500 py-4">Carregando calendário...</p>
+            </div>
+        </div>
+        <div class="pt-4 mt-6 border-t border-gray-200">
             <h2 class="text-base md:text-lg font-semibold text-gray-800 mb-3 flex items-center pb-3 border-b border-gray-200" data-tooltip-text="Resumo de Horas Trabalhadas por Colaborador no Mês">
                 <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2 text-blue-600"></i>
                 Resumo de Horas (<span id="employee-summary-period"><?php echo htmlspecialchars($nomeMesExibicao); ?></span>)
@@ -170,7 +179,8 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
                 <div class="max-h-60 overflow-y-auto text-xs md:text-sm">
                     <table id="employee-summary-table" class="w-full">
                         <thead class="sticky top-0 bg-blue-600 text-white z-10"><tr><th class="p-2 text-left font-semibold uppercase text-xs">Colaborador</th><th class="p-2 text-left font-semibold uppercase text-xs">Total Horas</th></tr></thead>
-                        <tbody class="divide-y divide-gray-200"></tbody>
+                        <tbody class="divide-y divide-gray-200">
+                            </tbody>
                     </table>
                 </div>
                 <div id="employee-hours-chart-container" class="w-full h-[280px] relative">
@@ -215,7 +225,7 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
                     <?php if ($isUserAdmin): ?>
                     <th class="p-2 w-10 text-center"><input type="checkbox" id="select-all-ausencias" title="Selecionar Todas as Ausências" class="form-checkbox h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer" data-tooltip-text="Selecionar/Desselecionar Todas"></th>
                     <?php else: ?>
-                    <th class="p-2 w-10 text-center"></th>
+                    <th class="p-2 w-10 text-center"></th> 
                     <?php endif; ?>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Início</th>
                     <th class="p-2 text-left font-semibold uppercase text-xs">Data Fim</th>
@@ -223,7 +233,7 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
                     <th class="p-2 text-left font-semibold uppercase text-xs">Motivo/Observações</th>
                 </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200"><tr><td colspan="5" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
+                <tbody class="divide-y divide-gray-200"><tr><td colspan="<?php echo $isUserAdmin ? '5' : '4'; ?>" class="p-2 text-center text-gray-500">Carregando...</td></tr></tbody>
             </table>
         </div>
     </section>
@@ -248,7 +258,8 @@ $isUserAdmin = isAdmin(); // Usar a função definida no header.php
 
 <?php
 $pageSpecificJs = [
-    'https://cdn.jsdelivr.net/npm/chart.js'
+    'https://cdn.jsdelivr.net/npm/chart.js' // Necessário para o gráfico de resumo de horas
+    // O main.js já será incluído automaticamente pelo footer.php
 ];
 require_once __DIR__ . '/templates/footer.php';
 ?>

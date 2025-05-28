@@ -11,7 +11,7 @@ $project_root_web_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($project_root_web_path === '/' || $project_root_web_path === '\\') {
     $project_root_web_path = '';
 }
-// Define BASE_URL_REDIRECT se ainda não estiver definido (evita conflito com header.php)
+
 if (!defined('BASE_URL_REDIRECT')) {
     define('BASE_URL_REDIRECT', rtrim($protocol . $host . $project_root_web_path, '/'));
 }
@@ -31,9 +31,9 @@ $pageTitle = 'Gerador de Senhas';
 $currentPage = 'gerador_senhas';
 $headerIcon = '<i data-lucide="key-round" class="w-6 h-6 md:w-7 md:h-7 mr-2 md:mr-3 text-blue-600"></i>';
 
-// O script JS será carregado como módulo pelo footer.php
+
 $pageSpecificJs = ['/public/js/page_specific/gerador_senhas_script.js'];
-// Não precisamos mais do CSS do Toastr aqui, pois usamos o showToast customizado
+
 $pageSpecificCss = []; 
 
 require_once __DIR__ . '/templates/header.php';

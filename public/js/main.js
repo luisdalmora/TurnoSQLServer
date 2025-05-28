@@ -8,9 +8,12 @@ import * as observacoesManager from "./modules/observacoesManager.js";
 import * as widgetsDashboard from "./modules/widgetsDashboard.js";
 import * as backupHandler from "./modules/backupHandler.js";
 import { initTooltips } from "./modules/tooltipManager.js";
+import {
+  renderTurnosCalendar,
+  initTurnosCalendar,
+} from "./modules/turnosCalendarManager.js";
 
 console.log("[DEBUG] main.js: Módulo principal carregado.");
-// A variável window.APP_USER_ROLE está disponível globalmente, definida no header.php
 
 async function syncDatesAndReloadAll(newYear, newMonth) {
   console.log(
@@ -20,19 +23,47 @@ async function syncDatesAndReloadAll(newYear, newMonth) {
 
   uiUpdater.updateAllDisplays();
 
+  let turnosDoMes = [];
+  let ausenciasDoMes = [];
+
   if (document.getElementById("shifts-table-main")) {
-    await turnosManager.carregarTurnosDoServidor(
+    turnosDoMes = await turnosManager.carregarTurnosDoServidor(
       state.currentDisplayYear,
       state.currentDisplayMonth,
       true
     );
   }
+
   if (document.getElementById("ausencias-table-main")) {
-    await ausenciasManager.carregarAusenciasDoServidor(
+    // Carrega dados de ausências para a tabela de ausências e para o calendário
+    ausenciasDoMes = await ausenciasManager.carregarAusenciasDoServidor(
       state.currentDisplayYearAusencias,
       state.currentDisplayMonthAusencias
     );
+  } else if (document.getElementById("turnos-calendar-view-container")) {
+    // Se a tabela de ausências não estiver na página, mas o calendário estiver,
+    // ainda precisamos carregar os dados de ausências para o calendário.
+    ausenciasDoMes = await ausenciasManager.carregarAusenciasDoServidor(
+      state.currentDisplayYear, // Usa o ano/mês global para o calendário
+      state.currentDisplayMonth
+    );
   }
+
+  if (document.getElementById("turnos-calendar-view-container")) {
+    renderTurnosCalendar(
+      state.currentDisplayYear,
+      state.currentDisplayMonth,
+      turnosDoMes,
+      ausenciasDoMes
+    );
+
+    const calendarPeriodSpan = document.getElementById("calendar-view-period");
+    if (calendarPeriodSpan) {
+      calendarPeriodSpan.textContent =
+        utils.nomesMeses[state.currentDisplayMonth] || "";
+    }
+  }
+
   if (document.getElementById("feriados-table")) {
     await widgetsDashboard.carregarFeriados(
       state.currentDisplayYearFeriados,
@@ -99,24 +130,48 @@ document.addEventListener("DOMContentLoaded", async function () {
   await utils.buscarEArmazenarColaboradores();
 
   const IS_ADMIN_ON_MAIN = window.APP_USER_ROLE === "admin";
+  let turnosIniciais = [];
+  let ausenciasIniciais = [];
 
   if (document.getElementById("shifts-table-main")) {
-    turnosManager.initTurnosEventListeners(); // Internamente já verifica IS_USER_ADMIN via window.APP_USER_ROLE
-    await turnosManager.carregarTurnosDoServidor(
+    turnosManager.initTurnosEventListeners();
+    turnosIniciais = await turnosManager.carregarTurnosDoServidor(
       state.currentDisplayYear,
       state.currentDisplayMonth,
       true
     );
   }
+
   if (document.getElementById("ausencias-table-main")) {
-    ausenciasManager.initAusenciasEventListeners(); // Adicionar verificação de role internamente
-    await ausenciasManager.carregarAusenciasDoServidor(
+    ausenciasManager.initAusenciasEventListeners();
+    ausenciasIniciais = await ausenciasManager.carregarAusenciasDoServidor(
       state.currentDisplayYearAusencias,
       state.currentDisplayMonthAusencias
     );
+  } else if (document.getElementById("turnos-calendar-view-container")) {
+    ausenciasIniciais = await ausenciasManager.carregarAusenciasDoServidor(
+      state.currentDisplayYear,
+      state.currentDisplayMonth
+    );
   }
+
+  if (document.getElementById("turnos-calendar-view-container")) {
+    initTurnosCalendar();
+    renderTurnosCalendar(
+      state.currentDisplayYear,
+      state.currentDisplayMonth,
+      turnosIniciais,
+      ausenciasIniciais
+    );
+    const calendarPeriodSpan = document.getElementById("calendar-view-period");
+    if (calendarPeriodSpan) {
+      calendarPeriodSpan.textContent =
+        utils.nomesMeses[state.currentDisplayMonth] || "";
+    }
+  }
+
   if (document.getElementById("observacoes-gerais-textarea")) {
-    observacoesManager.initObservacoesEventListeners(); // Adicionar verificação de role internamente
+    observacoesManager.initObservacoesEventListeners();
   }
 
   if (document.getElementById("feriados-table")) {
@@ -141,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (IS_ADMIN_ON_MAIN && document.getElementById("backup-db-btn")) {
     backupHandler.initBackupHandler();
   } else if (document.getElementById("backup-db-btn")) {
-    document.getElementById("backup-db-btn").style.display = "none"; // PHP já deve ocultar
+    document.getElementById("backup-db-btn").style.display = "none";
   }
 
   if (typeof initTooltips === "function") initTooltips();
@@ -182,6 +237,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         nm = 12;
         ny--;
       }
+
       syncDatesAndReloadAll(ny, nm);
     });
   }
@@ -217,4 +273,43 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 window.showGlobalToast = utils.showToast;
+
+// Adicionando uma função global para permitir que o ausenciasManager atualize o calendário
+// caso uma ausência seja salva/excluída e o calendário precise refletir isso imediatamente.
+// Isso é uma forma de comunicação entre módulos, não ideal, mas funcional para este caso.
+// Uma abordagem mais robusta usaria um sistema de eventos (event bus).
+window.atualizarCalendarioGeral = async (
+  year,
+  month,
+  turnos = null,
+  ausencias = null
+) => {
+  console.log("[DEBUG] window.atualizarCalendarioGeral chamado.");
+  let turnosParaCalendario = turnos;
+  let ausenciasParaCalendario = ausencias;
+
+  if (turnos === null) {
+    // Se turnos não foram passados, recarrega-os
+    turnosParaCalendario = await turnosManager.carregarTurnosDoServidor(
+      year,
+      month,
+      false
+    ); // false para não atualizar resumos de novo
+  }
+  if (ausencias === null) {
+    // Se ausências não foram passadas, recarrega-as
+    ausenciasParaCalendario =
+      await ausenciasManager.carregarAusenciasDoServidor(year, month);
+  }
+
+  if (document.getElementById("turnos-calendar-view-container")) {
+    renderTurnosCalendar(
+      year,
+      month,
+      turnosParaCalendario,
+      ausenciasParaCalendario
+    );
+  }
+};
+
 console.log("[DEBUG] main.js: Fim da análise do script.");
