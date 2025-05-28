@@ -4,7 +4,7 @@
 require_once __DIR__ . '/config/config.php'; //
 require_once __DIR__ . '/config/conexao.php';  //
 require_once __DIR__ . '/lib/LogHelper.php'; //
-require_once __DIR__ . '/lib/EmailHelper.php'; //
+require_once __DIR__ . '/lib/EmailHelper.php'; // // Já estava incluído
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -17,10 +17,9 @@ $conta_page_url = SITE_URL . '/conta.html';
 
 
 function setFlashAndRedirectCadastro($type, $message, $location, $conexaoSqlsrv = null) {
-    // Para páginas HTML (conta.html), ainda usamos GET. Se fosse PHP, usaríamos SESSION.
     if (strpos(basename($location), '.html') !== false) {
         $param_name = ($type === 'error' || $type === 'warning') ? 'erro' : 'status';
-        $param_val = $message; // Para erro, a mensagem é direta
+        $param_val = $message; 
 
         if ($type === 'success') {
             if (strpos(strtolower($message), 'email enviado') !== false || strpos(strtolower($message), 'verifique seu e-mail') !== false) {
@@ -33,7 +32,7 @@ function setFlashAndRedirectCadastro($type, $message, $location, $conexaoSqlsrv 
         if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
         header("Location: " . $location . "?{$param_name}=" . urlencode($param_val)); 
         exit;
-    } else { // Para páginas PHP, usar flash messages
+    } else { 
         $_SESSION['flash_message'] = ['type' => $type, 'message' => $message];
         if (isset($conexaoSqlsrv) && is_resource($conexaoSqlsrv)) sqlsrv_close($conexaoSqlsrv);
         header("Location: " . $location);
@@ -75,12 +74,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $logger->log('INFO', 'Novo usuário cadastrado com sucesso.', ['usuario_id' => $novo_usuario_id, 'usuario' => $usuario, 'email' => $email, 'role' => $default_role]); //
 
             $status_param_value = 'cadastro_sucesso';
+            
+            // Enviar e-mail de boas-vindas ao usuário
             if (EmailHelper::sendRegistrationConfirmationEmail($email, $nome_completo)) { //
-                $logger->log('INFO', 'E-mail de confirmação de cadastro enviado.', ['usuario_id' => $novo_usuario_id, 'email' => $email]); //
-                $status_param_value = 'cadastro_sucesso_email_enviado';
+                $logger->log('INFO', 'E-mail de boas-vindas enviado para novo usuário.', ['usuario_id' => $novo_usuario_id, 'email' => $email]);
+                $status_param_value = 'cadastro_sucesso_email_enviado'; // Atualiza o status se o e-mail for enviado
             } else {
-                $logger->log('ERROR', 'Falha ao enviar e-mail de confirmação de cadastro.', ['usuario_id' => $novo_usuario_id, 'email' => $email]); //
+                $logger->log('ERROR', 'Falha ao enviar e-mail de boas-vindas para novo usuário.', ['usuario_id' => $novo_usuario_id, 'email' => $email]);
             }
+
+            // Notificar o administrador sobre o novo registro
+            if (defined('ADMIN_EMAIL_NOTIFICATIONS') && !empty(ADMIN_EMAIL_NOTIFICATIONS)) {
+                if (EmailHelper::notifyAdminNewUserRegistration(ADMIN_EMAIL_NOTIFICATIONS, $nome_completo, $email, $usuario)) {
+                    $logger->log('INFO', 'E-mail de notificação de novo usuário enviado para o administrador.', ['admin_email' => ADMIN_EMAIL_NOTIFICATIONS, 'novo_usuario_email' => $email]);
+                } else {
+                    $logger->log('ERROR', 'Falha ao enviar e-mail de notificação de novo usuário para o administrador.', ['admin_email' => ADMIN_EMAIL_NOTIFICATIONS, 'novo_usuario_email' => $email]);
+                }
+            } else {
+                $logger->log('WARNING', 'ADMIN_EMAIL_NOTIFICATIONS não definido. Notificação de novo usuário não enviada.');
+            }
+
 
             sqlsrv_free_stmt($stmt);
             if (isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
