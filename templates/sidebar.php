@@ -46,13 +46,7 @@ $currentPage = $currentPage ?? '';
         </a>
         <?php endif; ?>
 
-        <a href="<?php echo BASE_URL; ?>/gerador_senhas.php"
-           class="flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 ease-in-out text-sm 
-                  <?php echo ($currentPage === 'gerador_senhas') ? 'bg-sky-600 text-white font-medium shadow-md scale-105' : 'hover:bg-slate-600 hover:text-white hover:scale-105 active:scale-100'; ?>"
-           data-tooltip-text="Gerar Senhas">
-            <i data-lucide="key-round" class="w-5 h-5 mr-3"></i> Gerador de Senhas
-        </a>
-    </nav>
+        </nav>
     <div class="p-2 border-t border-slate-500/50">
          <div class="px-2 py-1 space-y-1.5">
             <?php if (can('executar', 'backup') && !empty($csrfTokenBackup)): ?>
@@ -62,6 +56,9 @@ $currentPage = $currentPage ?? '';
                 </a>
             <?php endif; ?>
 
+               <button type="button" id="open-password-generator-modal-btn" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Gerar Senha Segura">
+                <i data-lucide="key-round" class="w-4 h-4 mr-2"></i> Gerar Senha
+            </button>
         </div>
         <div class="px-2 py-1 mt-1.5">
             <a href="<?php echo BASE_URL; ?>/logout.php" id="logout-link" class="flex items-center justify-center w-full px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-150 ease-in-out hover:scale-105 active:scale-95 hover:shadow-md text-sm" data-tooltip-text="Sair do Sistema">
