@@ -3,8 +3,9 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/conexao.php'; 
 require_once __DIR__ . '/../lib/LogHelper.php'; 
-require_once __DIR__ . '/api_helpers.php'; // Assumindo que seus helpers estão aqui
-require_once __DIR__ . '/../vendor/fpdf/fpdf.php'; // Exemplo para FPDF
+require_once __DIR__ . '/api_helpers.php'; 
+// Incluir o autoload do Composer para usar mPDF
+require_once __DIR__ . '/../vendor/autoload.php';
 
 
 if (session_status() == PHP_SESSION_NONE) {
@@ -12,32 +13,23 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 $logger = new LogHelper($conexao); 
-// Não definir Content-Type aqui ainda, pois pode ser CSV ou PDF ou JSON
 
 $csrfTokenSessionKey = 'csrf_token_reports';
-$novoCsrfTokenParaCliente = null; // Será preenchido por handleGetBase
+$novoCsrfTokenParaCliente = null; 
 $userId = $_SESSION['usuario_id'] ?? null;
 
-// Para GET, apenas verificamos login e preparamos CSRF
-handleGetBase($csrfTokenSessionKey, $novoCsrfTokenParaCliente, $conexao);
 
-// Validação do CSRF token recebido via GET
-if (!isset($_GET['csrf_token']) || !hash_equals($_SESSION[$csrfTokenSessionKey], $_GET['csrf_token'])) {
-    $logger->log('SECURITY_WARNING', 'Falha CSRF token em gerar_relatorio_turnos (GET).', ['user_id' => $userId]);
-    // Para requisições de exportação, é melhor falhar se o token não bater.
-    if (isset($_GET['export'])) {
-        http_response_code(403);
-        echo "Erro de segurança ao tentar exportar.";
-        if(isset($conexao)) sqlsrv_close($conexao);
-        exit;
-    }
-    // Se não for exportação, apenas loga e continua, enviando o novo token
+handleGetBase($csrfTokenSessionKey, $novoCsrfTokenParaCliente, $conexao); 
+
+if (!isset($_GET['csrf_token']) || !isset($_SESSION[$csrfTokenSessionKey]) || !hash_equals($_SESSION[$csrfTokenSessionKey], $_GET['csrf_token'])) {
+    $logger->log('SECURITY_WARNING', 'Falha CSRF token em gerar_relatorio_turnos (GET).', ['user_id' => $userId, 'get_params' => $_GET]);
+    http_response_code(403); 
+    echo "Erro de segurança (token inválido). Por favor, tente gerar o relatório novamente a partir da página.";
+    if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+    exit;
 }
-// Para exportações, o token CSRF é importante para evitar que um link malicioso seja usado para gerar relatórios
-// A cada exportação, um novo token não é necessariamente enviado de volta se for um download direto.
-// O token na sessão é o que importa para a próxima *interação do formulário* na página.
 
-$export_type = $_GET['export'] ?? null; // csv ou pdf
+$export_type = $_GET['export'] ?? null; 
 
 $data_inicio_str = $_GET['data_inicio'] ?? null;
 $data_fim_str = $_GET['data_fim'] ?? null;
@@ -47,33 +39,46 @@ if (empty($data_inicio_str) || empty($data_fim_str)) {
     if ($export_type) {
         header("HTTP/1.1 400 Bad Request");
         echo "Datas de início e fim são obrigatórias para exportação.";
-        if(isset($conexao)) sqlsrv_close($conexao);
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
         exit;
     }
-    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Datas de início e fim são obrigatórias.', 'csrf_token' => $novoCsrfTokenParaCliente]);
+    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32)); 
+    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Datas de início e fim são obrigatórias.', 'csrf_token' => $_SESSION[$csrfTokenSessionKey]]);
 }
 
 try {
     $data_inicio_obj = new DateTime($data_inicio_str);
     $data_fim_obj = new DateTime($data_fim_str);
     if ($data_inicio_obj > $data_fim_obj) {
-        if ($export_type) { /* ... erro 400 ... */ exit;}
-        fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Data de início não pode ser posterior à data de fim.', 'csrf_token' => $novoCsrfTokenParaCliente]);
+        if ($export_type) { 
+            header("HTTP/1.1 400 Bad Request");
+            echo "Data de início não pode ser posterior à data de fim.";
+            if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+            exit;
+        }
+        $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+        fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Data de início não pode ser posterior à data de fim.', 'csrf_token' => $_SESSION[$csrfTokenSessionKey]]);
     }
 } catch (Exception $e) {
-    if ($export_type) { /* ... erro 400 ... */ exit;}
+    if ($export_type) { 
+        header("HTTP/1.1 400 Bad Request");
+        echo "Formato de data inválido.";
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+        exit;
+    }
     $logger->log('WARNING', 'Formato de data inválido para relatório.', ['get_data' => $_GET, 'user_id' => $userId, 'error' => $e->getMessage()]);
-    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Formato de data inválido (esperado liturgiayyyy-MM-DD).', 'csrf_token' => $novoCsrfTokenParaCliente]);
+    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Formato de data inválido (esperado YYYY-MM-DD).', 'csrf_token' => $_SESSION[$csrfTokenSessionKey]]);
 }
 
 $sql = "SELECT 
             t.data, 
-            FORMAT(t.data, 'dd/MM/yyyy', 'pt-BR') AS data_formatada_relatorio, -- Renomeado para evitar conflito
+            FORMAT(t.data, 'dd/MM/yyyy', 'pt-BR') AS data_formatada_relatorio,
             t.colaborador, 
             t.hora_inicio,
             t.hora_fim,
-            FORMAT(CAST(t.hora_inicio AS TIME), 'HH:mm', 'pt-BR') AS hora_inicio_formatada_relatorio, -- Renomeado
-            FORMAT(CAST(t.hora_fim AS TIME), 'HH:mm', 'pt-BR') AS hora_fim_formatada_relatorio -- Renomeado
+            FORMAT(CAST(t.hora_inicio AS TIME), 'HH:mm', 'pt-BR') AS hora_inicio_formatada_relatorio, 
+            FORMAT(CAST(t.hora_fim AS TIME), 'HH:mm', 'pt-BR') AS hora_fim_formatada_relatorio 
         FROM 
             turnos t
         WHERE 
@@ -93,8 +98,14 @@ $stmt = sqlsrv_query($conexao, $sql, $params_query_values);
 if ($stmt === false) {
     $errors = sqlsrv_errors();
     $logger->log('ERROR', 'Falha ao executar query para gerar relatório (SQLSRV).', ['sqlsrv_errors' => $errors, 'user_id' => $userId]);
-    if ($export_type) { /* ... erro 500 ... */ exit;}
-    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Erro interno ao executar consulta.', 'csrf_token' => $novoCsrfTokenParaCliente]);
+    if ($export_type) { 
+        header("HTTP/1.1 500 Internal Server Error");
+        echo "Erro ao buscar dados para o relatório.";
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+        exit;
+    }
+    $_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+    fecharConexaoApiESair($conexao, ['success' => false, 'message' => 'Erro interno ao executar consulta.', 'csrf_token' => $_SESSION[$csrfTokenSessionKey]]);
 }
 
 $turnos_db = [];
@@ -104,7 +115,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
 sqlsrv_free_stmt($stmt);
 
 $turnos_processados_para_json = [];
-$turnos_para_export = []; // Para CSV/PDF
+$turnos_para_export = []; 
 $total_geral_horas_decimal = 0;
 
 foreach ($turnos_db as $turno_db_row) {
@@ -120,17 +131,24 @@ foreach ($turnos_db as $turno_db_row) {
             if ($hora_inicio_obj instanceof DateTimeInterface && $hora_fim_obj instanceof DateTimeInterface) {
                 $inicio_completo_str = $data_original_turno_str . ' ' . $hora_inicio_obj->format('H:i:s');
                 $fim_completo_str = $data_original_turno_str . ' ' . $hora_fim_obj->format('H:i:s');
+                
                 $inicio = new DateTime($inicio_completo_str);
                 $fim = new DateTime($fim_completo_str);
+
                 if ($fim <= $inicio) { $fim->add(new DateInterval('P1D')); }
+                
                 $intervalo = $inicio->diff($fim);
                 $duracao_em_minutos = ($intervalo->days * 24 * 60) + ($intervalo->h * 60) + $intervalo->i;
                 $duracao_decimal = $duracao_em_minutos / 60.0;
                 $total_geral_horas_decimal += $duracao_decimal;
-                $total_horas_no_intervalo = ($intervalo->days * 24) + $intervalo->h;
-                $duracao_formatada_str = sprintf('%02dh%02dmin', $total_horas_no_intervalo, $intervalo->i);
+                
+                $total_horas_no_intervalo = floor($duracao_em_minutos / 60);
+                $minutos_restantes = $duracao_em_minutos % 60;
+                $duracao_formatada_str = sprintf('%02dh%02dmin', $total_horas_no_intervalo, $minutos_restantes);
             }
-        } catch (Exception $e) { /* ... log ... */ }
+        } catch (Exception $e) { 
+            $logger->log('WARNING', 'Erro ao calcular duração do turno.', ['turno_id_ou_data' => $data_original_turno_str, 'error' => $e->getMessage()]);
+        }
     }
 
     $item_para_json = [
@@ -142,82 +160,139 @@ foreach ($turnos_db as $turno_db_row) {
     ];
     $turnos_processados_para_json[] = $item_para_json;
 
-    if ($export_type) {
-        $turnos_para_export[] = [
-            'Data' => $turno_db_row['data_formatada_relatorio'],
-            'Colaborador' => $turno_db_row['colaborador'],
-            'Hora Início' => $turno_db_row['hora_inicio_formatada_relatorio'],
-            'Hora Fim' => $turno_db_row['hora_fim_formatada_relatorio'],
-            'Duração' => $duracao_formatada_str,
-            'Duração Decimal' => number_format($duracao_decimal, 2, ',', '.') // Para CSV/PDF pode ser útil
-        ];
-    }
+    $turnos_para_export[] = [
+        'Data' => $turno_db_row['data_formatada_relatorio'],
+        'Colaborador' => $turno_db_row['colaborador'],
+        'Hora Início' => $turno_db_row['hora_inicio_formatada_relatorio'],
+        'Hora Fim' => $turno_db_row['hora_fim_formatada_relatorio'],
+        'Duração' => $duracao_formatada_str,
+        'Duração Decimal (h)' => number_format($duracao_decimal, 2, ',', '.') 
+    ];
 }
+
+$_SESSION[$csrfTokenSessionKey] = bin2hex(random_bytes(32));
+$novoCsrfTokenParaCliente = $_SESSION[$csrfTokenSessionKey];
+
 
 if ($export_type === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="relatorio_turnos_'.date('Ymd_His').'.csv"');
     $output = fopen('php://output', 'w');
     
-    // Cabeçalho do CSV (traduzido)
-    fputcsv($output, array_keys($turnos_para_export[0] ?? [])); 
-    
-    foreach ($turnos_para_export as $row_export) {
-        fputcsv($output, $row_export);
+    if (!empty($turnos_para_export)) {
+        fputcsv($output, array_keys($turnos_para_export[0])); 
+        foreach ($turnos_para_export as $row_export) {
+            fputcsv($output, $row_export);
+        }
+    } else {
+        fputcsv($output, ['Nenhum dado encontrado para os filtros selecionados.']);
     }
     fclose($output);
-    if(isset($conexao)) sqlsrv_close($conexao);
+    if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
     exit;
 
 } elseif ($export_type === 'pdf') {
-    // Geração de PDF (requer biblioteca como FPDF ou TCPDF)
-    // Exemplo conceitual com FPDF (você precisará instalar e configurar FPDF)
-    // if (!class_exists('FPDF')) {
-    //     $logger->log('ERROR', 'Biblioteca FPDF não encontrada para gerar PDF de relatório.', ['user_id' => $userId]);
-    //     header("HTTP/1.1 500 Internal Server Error");
-    //     echo "Erro: Biblioteca de geração de PDF não está configurada no servidor.";
-    //      if(isset($conexao)) sqlsrv_close($conexao);
-    //     exit;
-    // }
+    try {
+        // CORREÇÃO: Usar new mPDF para mPDF v6.x
+        $mpdf = new mPDF([ // Alterado de \Mpdf\Mpdf para mPDF
+            'mode' => 'utf-8',
+            'format' => 'A4-L', 
+            'margin_left' => 10,
+            'margin_right' => 10,
+            'margin_top' => 25, 
+            'margin_bottom' => 20, 
+            'default_font' => 'sans-serif' 
+        ]);
 
-    // $pdf = new FPDF();
-    // $pdf->AddPage();
-    // $pdf->SetFont('Arial','B',10);
+        $mpdf->SetTitle("Relatório de Turnos");
+        $mpdf->SetAuthor("Sim Posto Sistema");
+        $mpdf->SetCreator("Sim Posto Sistema");
+        $dataAtualFormatada = date('d/m/Y H:i:s');
 
-    // $pdf->Cell(30,10,utf8_decode('Data'),1);
-    // $pdf->Cell(50,10,utf8_decode('Colaborador'),1);
-    // $pdf->Cell(25,10,utf8_decode('Início'),1);
-    // $pdf->Cell(25,10,utf8_decode('Fim'),1);
-    // $pdf->Cell(30,10,utf8_decode('Duração'),1);
-    // $pdf->Ln();
+        $mpdf->SetHeader("Relatório de Turnos - Sim Posto|Gerado em: {$dataAtualFormatada}|Página {PAGENO} de {nb}");
+        $mpdf->SetFooter("Sim Posto Sistema");
 
-    // $pdf->SetFont('Arial','',9);
-    // foreach ($turnos_para_export as $row_export) {
-    //     $pdf->Cell(30,7,utf8_decode($row_export['Data']),1);
-    //     $pdf->Cell(50,7,utf8_decode($row_export['Colaborador']),1);
-    //     $pdf->Cell(25,7,utf8_decode($row_export['Hora Início']),1);
-    //     $pdf->Cell(25,7,utf8_decode($row_export['Hora Fim']),1);
-    //     $pdf->Cell(30,7,utf8_decode($row_export['Duração']),1);
-    //     $pdf->Ln();
-    // }
-    // $pdf->Output('D', 'relatorio_turnos_'.date('Ymd_His').'.pdf'); // D: Força download
-    // if(isset($conexao)) sqlsrv_close($conexao);
-    // exit;
+        $html = <<<HTML
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Arial', sans-serif; font-size: 9px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #a0a0a0; padding: 5px; text-align: left; }
+                th { background-color: #e9e9e9; font-weight: bold; font-size: 10px;}
+                h1 { text-align: center; margin-bottom: 15px; font-size: 16px; color: #333; }
+                .info-header { margin-bottom: 10px; font-size: 10px; }
+                .info-header p { margin: 2px 0; }
+            </style>
+        </head>
+        <body>
+            <h1>Relatório de Turnos</h1>
+            <div class="info-header">
+                <p><strong>Período:</strong> {$data_inicio_obj->format('d/m/Y')} - {$data_fim_obj->format('d/m/Y')}</p>
+HTML;
+        if (!empty($colaborador_filtro)) {
+            $html .= "<p><strong>Colaborador:</strong> " . htmlspecialchars($colaborador_filtro) . "</p>";
+        }
+        $html .= "<p><strong>Total de Turnos Registrados:</strong> " . count($turnos_para_export) . "</p>";
+        $html .= "<p><strong>Total de Horas Trabalhadas (aproximado):</strong> " . number_format($total_geral_horas_decimal, 2, ',', '.') . "h</p>";
+        $html .= "</div><table><thead><tr>";
 
-    // Se não tiver FPDF (ou outra lib) instalada, retorne uma mensagem.
-    header("HTTP/1.1 501 Not Implemented");
-    echo "Funcionalidade de exportar para PDF ainda não implementada no servidor.";
-    $logger->log('WARNING', 'Tentativa de exportar PDF sem biblioteca configurada.', ['user_id' => $userId]);
-     if(isset($conexao)) sqlsrv_close($conexao);
-    exit;
+        $headers = ['Data', 'Colaborador', 'Hora Início', 'Hora Fim', 'Duração', 'Duração Decimal (h)'];
+        foreach ($headers as $header) {
+            $html .= "<th>" . htmlspecialchars($header) . "</th>";
+        }
+        $html .= "</tr></thead><tbody>";
 
-} else { // Resposta JSON padrão
-    header('Content-Type: application/json'); // Garantir que é JSON para a resposta padrão
+        if (empty($turnos_para_export)) {
+            $html .= "<tr><td colspan='" . count($headers) . "' style='text-align:center; padding: 10px;'>Nenhum turno encontrado para os filtros selecionados.</td></tr>";
+        } else {
+            foreach ($turnos_para_export as $row_export) {
+                $html .= "<tr>";
+                $html .= "<td>" . htmlspecialchars($row_export['Data']) . "</td>";
+                $html .= "<td>" . htmlspecialchars($row_export['Colaborador']) . "</td>";
+                $html .= "<td>" . htmlspecialchars($row_export['Hora Início']) . "</td>";
+                $html .= "<td>" . htmlspecialchars($row_export['Hora Fim']) . "</td>";
+                $html .= "<td>" . htmlspecialchars($row_export['Duração']) . "</td>";
+                $html .= "<td>" . htmlspecialchars($row_export['Duração Decimal (h)']) . "</td>";
+                $html .= "</tr>";
+            }
+        }
+
+        $html .= <<<HTML
+        </tbody></table>
+        </body></html>
+HTML;
+        
+        $mpdf->WriteHTML($html);
+        $logger->log('INFO', 'PDF do relatório de turnos gerado com sucesso.', ['user_id' => $userId, 'filtros' => $_GET]);
+        // CORREÇÃO: Para mPDF v6.x, o segundo parâmetro de Output define o destino.
+        $mpdf->Output('relatorio_turnos_'.date('Ymd_His').'.pdf', 'D'); 
+
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+        exit;
+
+    } catch (\MpdfException $e) { // mPDF v6.x pode não usar \Mpdf\MpdfException, mas sim mPDF_exception
+        $logger->log('ERROR', 'Erro ao gerar PDF com mPDF: ' . $e->getMessage(), ['user_id' => $userId, 'filtros' => $_GET, 'trace' => $e->getTraceAsString()]);
+        header("HTTP/1.1 500 Internal Server Error");
+        echo "Erro ao gerar o arquivo PDF: " . htmlspecialchars($e->getMessage());
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+        exit;
+    } catch (Exception $e) { 
+        $logger->log('ERROR', 'Erro inesperado ao gerar PDF: ' . $e->getMessage(), ['user_id' => $userId, 'filtros' => $_GET, 'trace' => $e->getTraceAsString()]);
+        header("HTTP/1.1 500 Internal Server Error");
+        echo "Ocorreu um erro inesperado ao gerar o PDF.";
+        if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
+        exit;
+    }
+} else { 
+    header('Content-Type: application/json'); 
     fecharConexaoApiESair($conexao, [
         'success'             => true,
         'turnos'              => $turnos_processados_para_json,
         'total_geral_horas'   => round($total_geral_horas_decimal, 2),
         'total_turnos'        => count($turnos_processados_para_json),
-        'csrf_token'          => $novoCsrfTokenParaCliente
+        'csrf_token'          => $novoCsrfTokenParaCliente 
     ]);
 }
+
+if(isset($conexao) && is_resource($conexao)) sqlsrv_close($conexao);
